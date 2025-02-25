@@ -1,0 +1,18 @@
+app:
+  datasource:
+    host: localhost
+    port: 5432
+    database: billing_engine
+    username: yule
+    password: Wc123123
+
+logging:
+  level:
+    root: INFO
+    org.hibernate.SQL: DEBUG
+    com.maimai: DEBUG
+  file:
+    name: logs/application.log
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
