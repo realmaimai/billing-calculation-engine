@@ -11,6 +11,7 @@ logging:
     root: INFO
     org.hibernate.SQL: DEBUG
     com.maimai: DEBUG
+    org.springframework.security: DEBUG
   file:
     name: logs/application.log
   logback:
