@@ -1,15 +1,19 @@
 package com.maimai.billingcalculationengine.common.utils;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.DateUtil;
 import org.apache.poi.ss.usermodel.Row;
+import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.*;
 
+@Slf4j
 public class FileUtil {
-    private String getCellValueAsString(Row row, Integer columnIndex) {
+    public static String getCellValueAsString(Row row, Integer columnIndex) {
         if (columnIndex == null) return null;
 
         Cell cell = row.getCell(columnIndex);
@@ -40,7 +44,7 @@ public class FileUtil {
         }
     }
 
-    private BigDecimal getCellValueAsBigDecimal(Row row, Integer columnIndex) {
+    public static BigDecimal getCellValueAsBigDecimal(Row row, Integer columnIndex) {
         if (columnIndex == null) return BigDecimal.ZERO;
 
         Cell cell = row.getCell(columnIndex);
@@ -66,7 +70,7 @@ public class FileUtil {
         }
     }
 
-    private LocalDate getCellValueAsDate(Row row, Integer columnIndex) {
+    public static LocalDate getCellValueAsDate(Row row, Integer columnIndex) {
         if (columnIndex == null) return null;
 
         Cell cell = row.getCell(columnIndex);
@@ -89,5 +93,31 @@ public class FileUtil {
             default:
                 return null;
         }
+    }
+
+    public static Map<String, Integer> validateHeaders(Row headerRow, List<String> expectedColumns) {
+        Map<String, Integer> columnIndexMap = new HashMap<>();
+
+        // get actual header values and their indexes
+        List<String> actualHeaders = new ArrayList<>();
+        for (int i = 0; i < headerRow.getLastCellNum(); i++) {
+            Cell cell = headerRow.getCell(i);
+            if (cell != null) {
+                String headerValue = cell.getStringCellValue().trim().toLowerCase();
+                actualHeaders.add(headerValue);
+                columnIndexMap.put(headerValue, i);
+            }
+        }
+
+        // check if all expected columns are present
+        for (String expectedColumn : expectedColumns) {
+            if (!columnIndexMap.containsKey(expectedColumn.toLowerCase())) {
+                log.error("Missing expected column: {}", expectedColumn);
+                log.error("Actual headers: {}", actualHeaders);
+                return null;
+            }
+        }
+
+        return columnIndexMap;
     }
 }
