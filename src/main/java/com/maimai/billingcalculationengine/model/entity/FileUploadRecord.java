@@ -10,12 +10,12 @@ import org.springframework.data.annotation.CreatedDate;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "document_uploads", schema = "public")
+@Table(name = "file_uploads", schema = "public")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class DocumentUpload {
+public class FileUploadRecord {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

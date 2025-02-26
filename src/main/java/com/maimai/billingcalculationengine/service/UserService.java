@@ -34,9 +34,22 @@ public class UserService {
     @Resource
     private BCryptPasswordEncoder passwordEncoder;
 
+    /**
+     * Authenticates a user and generates a JWT token.
+     *
+     * This method:
+     * 1. Validates user credentials against stored information
+     * 2. Checks account status
+     * 3. Generates a JWT token for authenticated users
+     *
+     * @param userLoginDTO DTO containing login credentials
+     * @return UserLoginResponse with user information and authentication token
+     * @throws AccountNotFoundException if user account doesn't exist
+     * @throws InactiveAccountException if account is inactive
+     * @throws PasswordMismatchException if password is incorrect
+     */
     @TrackExecution(Layer.SERVICE)
     public UserLoginResponse login(UserLoginDTO userLoginDTO) throws AccountNotFoundException {
-        // find user with username
         String email = userLoginDTO.getEmail();
         String password = userLoginDTO.getPassword();
         User userByEmail = userRepository.findByEmail(email)
@@ -57,7 +70,7 @@ public class UserService {
             throw new PasswordMismatchException(MessageConstants.Validation.PASSWORD_MISMATCH);
         }
 
-        // generate token
+        // start generating token
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userByEmail.getId());
         String token = JwtUtil.createJwt(jwtProperties.getSecretKey(), jwtProperties.getTtl(), claims);
@@ -74,12 +87,22 @@ public class UserService {
                 .build();
     }
 
+    /**
+     * Registers a new user or reactivates an existing inactive account.
+     *
+     * This method:
+     * 1. Checks if the email is already in use by an active account
+     * 2. Checks if the email belongs to an inactive account that can be reactivated
+     * 3. Creates a new user account if needed
+     *
+     * @param userRegisterDTO DTO containing user registration information
+     * @throws UserAlreadyExistsException if email is already in use by an active account
+     */
     public void register(UserRegisterDTO userRegisterDTO) {
         String email = userRegisterDTO.getEmail();
         log.info("Processing registration request for email: {}", email);
         String password = userRegisterDTO.getPassword();
         String encode = passwordEncoder.encode(password);
-        // TODO: add user roles for future authorization
 
         // check if this user is existed and active
         Optional<User> existingUser = userRepository.findByEmailAndActiveTrue(email);
@@ -110,6 +133,31 @@ public class UserService {
                 .build();
         userRepository.save(newUser);
         log.info("New user registered successfully: {}", email);
+    }
+
+    /**
+     * Deactivates a user account (soft delete).
+     *
+     * @param userId ID of the user account to deactivate
+     * @throws AccountNotFoundException if user doesn't exist
+     */
+    public void deactivateAccount(Long userId) {
+        log.info("Processing account deactivation request for user ID: {}", userId);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> {
+                    log.warn("Deactivation failed - user not found with ID: {}", userId);
+                    return new AccountNotFoundException(MessageConstants.User.USER_NOT_FOUND);
+                });
+
+        if (!user.isActive()) {
+            log.warn("Account already inactive for user ID: {}", userId);
+            return;
+        }
+
+        user.setActive(false);
+        userRepository.save(user);
+        log.info("Account successfully deactivated for user ID: {}", userId);
     }
 
 }

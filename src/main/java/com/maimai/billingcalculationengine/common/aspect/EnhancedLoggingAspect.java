@@ -32,14 +32,14 @@ public class EnhancedLoggingAspect {
 
         long startTime = System.currentTimeMillis();
 
-        log.info("[{}] Enter: {}", layer, methodPath);
+        log.debug("[{}] Enter: {}", layer, methodPath);
 
         // execute method
         Object result = jp.proceed();
 
         long executionTime = System.currentTimeMillis() - startTime;
 
-        log.info("[{}] Exit: {} Time taken: {}ms", layer, methodPath, executionTime);
+        log.debug("[{}] Exit: {} Time taken: {}ms", layer, methodPath, executionTime);
 
         return result;
     }

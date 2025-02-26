@@ -1,5 +1,8 @@
 package com.maimai.billingcalculationengine.service;
 
+import com.maimai.billingcalculationengine.common.annotations.TrackExecution;
+import com.maimai.billingcalculationengine.common.enums.Layer;
+import com.maimai.billingcalculationengine.common.exception.ResourceNotFoundException;
 import com.maimai.billingcalculationengine.model.entity.Client;
 import com.maimai.billingcalculationengine.model.entity.Portfolio;
 import com.maimai.billingcalculationengine.model.response.ClientResponse;
@@ -10,7 +13,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -26,6 +28,12 @@ public class ClientService {
     @Resource
     private CalculationService calculationService;
 
+    /**
+     * Retrieves all clients with their calculated financial metrics.
+     *
+     * @return List of ClientResponse objects containing client information and financial metrics
+     */
+    @TrackExecution(Layer.SERVICE)
     public List<ClientResponse> getAllClients() {
         List<Client> clients = clientRepository.findAll();
         List<ClientResponse> clientResponses = clients.stream()
@@ -35,33 +43,20 @@ public class ClientService {
         return clientResponses;
     }
 
+    /**
+     * Converts a Client entity to a ClientResponse DTO with calculated fee information.
+     *
+     * @param client The Client entity to convert
+     * @return A ClientResponse with all calculated financial metrics
+     */
     private ClientResponse convertToResponse(Client client) {
-        log.info("Starting fee calculation for client ID: {}, Name: {}", client.getClientId(), client.getClientName());
-        BigDecimal totalAum = BigDecimal.ZERO;
-        BigDecimal totalFee = BigDecimal.ZERO;
+        log.info("Converting client to response - ID: {}, Name: {}", client.getClientId(), client.getClientName());
 
-        List<Portfolio> portfoliosByClientId = portfolioRepository.findAllByClientId(client.getClientId());
-        log.info("Found {} portfolios for client {}", portfoliosByClientId.size(), client.getClientId());
-        for (Portfolio portfolio : portfoliosByClientId) {
-            log.debug("Processing portfolio ID: {}", portfolio.getPortfolioId());
+        BigDecimal totalAum = calculationService.calculateClientTotalAum(client.getClientId());
+        BigDecimal totalFee = calculationService.calculateClientTotalFee(client.getClientId());
+        BigDecimal effectiveFeeRate = calculationService.calculateEffectiveFeeRate(totalFee, totalAum);
 
-            BigDecimal portfolioAum = calculationService.calculatePortfolioAum(portfolio);
-            log.debug("Portfolio {} AUM: ${} {}", portfolio.getPortfolioId(), portfolioAum, "CAD");
-            totalAum = totalAum.add(portfolioAum);
-
-            BigDecimal portfolioFee = calculationService.calculatePortfolioFee(portfolioAum, portfolio);
-            log.debug("Portfolio {} Fee: ${} {}", portfolio.getPortfolioId(), portfolioFee, "CAD");
-            totalFee = totalFee.add(portfolioFee);
-        }
-
-        // effective fee rate calculation
-        BigDecimal effectiveFeeRate = BigDecimal.ZERO;
-        if (totalAum.compareTo(BigDecimal.ZERO) > 0) {
-            effectiveFeeRate = totalFee
-                    .multiply(new BigDecimal("100"))
-                    .divide(totalAum, 2, RoundingMode.HALF_UP);
-        }
-        log.info("Client {} calculation complete - Total AUM: ${} CAD, Total Fee: ${} CAD, Effective Rate: {}%",
+        log.info("Client {} conversion complete - Total AUM: ${} CAD, Total Fee: ${} CAD, Effective Rate: {}%",
                 client.getClientId(), totalAum, totalFee, effectiveFeeRate);
 
         return ClientResponse.builder()
@@ -76,5 +71,26 @@ public class ClientService {
                 .build();
     }
 
+    /**
+     * Retrieves a single client by ID with calculated financial metrics.
+     *
+     * @param clientId The ID of the client to retrieve
+     * @return ClientResponse containing client information and financial metrics
+     * @throws ResourceNotFoundException if client not found
+     */
+    public ClientResponse getClientById(String clientId) {
+        log.info("Retrieving client with ID: {}", clientId);
+
+        Client client = clientRepository.findByClientId(clientId)
+                .orElseThrow(() -> {
+                    log.error("Client not found with ID: {}", clientId);
+                    return new ResourceNotFoundException("Client not found with ID: " + clientId);
+                });
+
+        ClientResponse response = convertToResponse(client);
+        log.info("Successfully retrieved client: {}", clientId);
+
+        return response;
+    }
 
 }
