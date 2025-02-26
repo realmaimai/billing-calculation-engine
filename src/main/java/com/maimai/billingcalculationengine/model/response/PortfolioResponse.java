@@ -15,6 +15,6 @@ public class PortfolioResponse {
     private String portfolioId;
     private String clientId;
     private String portfolioCurrency;
-    private BigDecimal portfolioBalance;
+    private BigDecimal portfolioAum;
     private BigDecimal portfolioFee;
 }

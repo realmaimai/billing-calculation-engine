@@ -19,7 +19,7 @@ public class DocumentUploadController {
     // Get all document upload records
     @GetMapping
     public Result<List<DocumentUpload>> getAllDocuments() {
-        List<DocumentUpload> documents = documentUploadService.getAllDocuments();
-        return Result.success(documents, "Documents retrieved successfully");
+        List<DocumentUpload> documentRecords = documentUploadService.getAllDocumentRecords();
+        return Result.success(documentRecords, "Documents retrieved successfully");
     }
 }

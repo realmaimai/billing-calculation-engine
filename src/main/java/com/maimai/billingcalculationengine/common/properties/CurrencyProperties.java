@@ -10,7 +10,7 @@ import java.math.BigDecimal;
 @ConfigurationProperties(prefix = "app.currency")
 @Data
 public class CurrencyProperties {
-    // currency ratio converted to CAD
-    // e.g. USD : CAD = 1.43
-    private double USD;
+    // currency ratio converted from CAD
+    // e.g. CAD : USD = 0.71
+    private double toUSD;
 }

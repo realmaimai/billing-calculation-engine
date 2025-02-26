@@ -1,14 +1,8 @@
 package com.maimai.billingcalculationengine.service;
 
 import com.maimai.billingcalculationengine.common.properties.CurrencyProperties;
-import com.maimai.billingcalculationengine.model.entity.Asset;
-import com.maimai.billingcalculationengine.model.entity.BillingTier;
-import com.maimai.billingcalculationengine.model.entity.Client;
 import com.maimai.billingcalculationengine.model.entity.Portfolio;
 import com.maimai.billingcalculationengine.model.response.PortfolioResponse;
-import com.maimai.billingcalculationengine.repository.AssetRepository;
-import com.maimai.billingcalculationengine.repository.BillingTierRepository;
-import com.maimai.billingcalculationengine.repository.ClientRepository;
 import com.maimai.billingcalculationengine.repository.PortfolioRepository;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -16,7 +10,6 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -26,18 +19,7 @@ public class PortfolioService {
     private PortfolioRepository portfolioRepository;
 
     @Resource
-    private AssetRepository assetRepository;
-
-    @Resource
-    private ClientRepository clientRepository;
-
-    @Resource
-    private BillingTierRepository billingTierRepository;
-
-    @Resource
-    private CurrencyProperties currencyProperties;
-
-
+    private CalculationService calculationService;
 
     public List<PortfolioResponse> getAllPortfolios() {
         List<Portfolio> portfolios = portfolioRepository.findAll();
@@ -49,80 +31,15 @@ public class PortfolioService {
     }
 
     private PortfolioResponse convertToResponse(Portfolio portfolio) {
-
-
-        BigDecimal portfolioBalance = calculatePortfolioBalance(portfolio);
-        BigDecimal portfolioFee = calculatePortfolioFee(portfolioBalance, portfolio);
+        BigDecimal portfolioAum = calculationService.calculatePortfolioAum(portfolio);
+        BigDecimal portfolioFee = calculationService.calculatePortfolioFee(portfolioAum, portfolio);
 
         return PortfolioResponse.builder()
                 .portfolioId(portfolio.getPortfolioId())
                 .clientId(portfolio.getClientId())
                 .portfolioCurrency(portfolio.getPortfolioCurrency())
-                .portfolioBalance(portfolioBalance)
+                .portfolioAum(portfolioAum)
                 .portfolioFee(portfolioFee)
                 .build();
-    }
-
-    private BigDecimal calculatePortfolioBalance(Portfolio portfolio) {
-        BigDecimal portfolioBalance = BigDecimal.ZERO;
-        log.info("Calculating portfolio balance for portfolioId: {}", portfolio.getPortfolioId());
-
-        // calculate all assets value to portfolio balance
-        List<Asset> assetsByPortfolioId = assetRepository.findAllByPortfolioId(portfolio.getPortfolioId());
-        log.info("Found {} assets for portfolioId: {}", assetsByPortfolioId.size(), portfolio.getPortfolioId());
-
-        for (Asset asset : assetsByPortfolioId) {
-            log.info("Processing asset: id={}, currency={}, value={}",
-                    asset.getAssetId(), asset.getCurrency(), asset.getAssetValue());
-
-            // TODO: use strategic pattern + simple factory
-            if (asset.getCurrency().equals("CAD")) {
-                portfolioBalance = portfolioBalance.add(asset.getAssetValue());
-                log.debug("Added CAD asset value: {}, new portfolio balance: {}",
-                        asset.getAssetValue(), portfolioBalance);
-            } else if (asset.getCurrency().equals("USD")) {
-                BigDecimal usdRatio = BigDecimal.valueOf(currencyProperties.getUSD());
-                BigDecimal convertedValue = asset.getAssetValue().multiply(usdRatio);
-                portfolioBalance = portfolioBalance.add(asset.getAssetValue().multiply(convertedValue));
-                log.debug("Converted USD asset value: {} (USD Ratio: {}), new portfolio balance: {}",
-                        convertedValue, usdRatio, portfolioBalance);
-            }
-        }
-
-        log.info("Final calculated portfolio balance: {}", portfolioBalance);
-        return portfolioBalance;
-    }
-
-    private BigDecimal calculatePortfolioFee(BigDecimal balance, Portfolio portfolio) {
-        String clientId = portfolio.getClientId();
-        log.info("Calculating portfolio fee for clientId: {}, portfolioId: {}, balance: {}",
-                clientId, portfolio.getPortfolioId(), balance);
-
-        Optional<Client> client = clientRepository.findByClientId(clientId);
-        if (client.isEmpty()) {
-            log.error("Client not found for clientId: {}", clientId);
-            throw new RuntimeException("Client not found");
-        }
-
-        String billingTierId = client.get().getBillingTierId();
-        log.info("Retrieved billingTierId: {} for clientId: {}", billingTierId, clientId);
-
-        // get fee percentage
-        Optional<BillingTier> applicableTier = billingTierRepository.findByTierIdAndBalance(billingTierId, balance);
-        Optional<BigDecimal> feePercentage = applicableTier.map(BillingTier::getFeePercentage);
-
-        if (feePercentage.isEmpty()) {
-            log.error("Fee percentage not found for billingTierId: {}, balance: {}", billingTierId, balance);
-            throw new RuntimeException("Fee percentage not found");
-        }
-
-        // convert percentage to decimal (e.g., 1.25% to 0.0125)
-        BigDecimal feeRate = feePercentage.get().divide(new BigDecimal("100"));
-        BigDecimal portfolioFee = balance.multiply(feeRate);
-
-        log.info("Calculated portfolio fee: {} (fee rate: {}) for clientId: {}, portfolioId: {}",
-                portfolioFee, feeRate, clientId, portfolio.getPortfolioId());
-
-        return portfolioFee;
     }
 }

@@ -17,6 +17,7 @@ public class ClientResponse {
     private String province;
     private String country;
     private String billingTierId;
-    private BigDecimal clientBalance;
+    private BigDecimal totalAum;
+    private BigDecimal totalFee;
     private BigDecimal effectiveFeeRate;
 }

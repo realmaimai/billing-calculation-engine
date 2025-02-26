@@ -23,15 +23,19 @@ spring:
           lob:
             non_contextual_creation: true
 
-# related to common -> properties -> JwtProperties
+# single source of truth of data below!!!
+# related to common -> properties
 app:
+  #  -> JwtProperties
   jwt:
     # has to be 32 chars to pass the JWA specification
     # "HMAC-SHA algorithms MUST have a size >= 256 bits"
     secret-key: VeryLongSecretKeyHereThatIsAtLeast32CharactersLong
     ttl: 86400000
+  #  -> CurrencyProperties
+  # add more currency ratio in here
   currency:
-    USD: 1.43
+    toUSD: 1.43
 
 springdoc:
   swagger-ui:

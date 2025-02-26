@@ -16,7 +16,7 @@ public class DocumentUploadService {
     private DocumentUploadRepository documentUploadRepository;
 
     @GetMapping()
-    public List<DocumentUpload> getAllDocuments() {
+    public List<DocumentUpload> getAllDocumentRecords() {
         return documentUploadRepository.findAll();
     }
 }
