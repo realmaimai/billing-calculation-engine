@@ -61,7 +61,8 @@ public class UserService {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userByEmail.getId());
         String token = JwtUtil.createJwt(jwtProperties.getSecretKey(), jwtProperties.getTtl(), claims);
-        log.debug("JWT generated for user: {}", email);
+        log.debug("JWT: {}", token);
+        log.debug("Generated for user: {}", email);
 
         log.info("Login successful for user: {}", email);
 
