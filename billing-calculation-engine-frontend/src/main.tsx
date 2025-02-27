@@ -1,50 +1,26 @@
-// react-query
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-// vercel analytics
-import { Analytics } from "@vercel/analytics/react";
-// react
-import { Suspense } from "react";
-import ReactDOM from "react-dom/client";
-// helmet
-import { HelmetProvider } from "react-helmet-async";
-// svg icons
-import "virtual:svg-icons-register";
-// mock api
-import worker from "./_mock";
-// i18n
-import "./locales/i18n";
-// css
-import "./global.css";
-import "./theme/theme.css";
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+// 正确的样式引入顺序
+// 样式初始化一般放在最前面
+import "reset-css"
+// UI框架的样式
 
-// root component
-import App from "./App";
-import ProgressBar from "./components/progress-bar";
+// 全局样式
+import "@/assets/styles/global.scss"
+// 组件的样式
+import App from './App'
+import { BrowserRouter } from "react-router-dom"
+// import Router from "./router"
 
-const charAt = `
-    ███████╗██╗      █████╗ ███████╗██╗  ██╗ 
-    ██╔════╝██║     ██╔══██╗██╔════╝██║  ██║
-    ███████╗██║     ███████║███████╗███████║
-    ╚════██║██║     ██╔══██║╚════██║██╔══██║
-    ███████║███████╗██║  ██║███████║██║  ██║
-    ╚══════╝╚══════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝
-  `;
-console.info(`%c${charAt}`, "color: #5BE49B");
+// 状态管理
+import {Provider} from "react-redux"
+import store from "@/store"
 
-const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement);
-
-root.render(
-	<HelmetProvider>
-		<QueryClientProvider client={new QueryClient()}>
-			{/* <ReactQueryDevtools initialIsOpen={false} /> */}
-			<Suspense>
-				<ProgressBar />
-				<Analytics />
-				<App />
-			</Suspense>
-		</QueryClientProvider>
-	</HelmetProvider>,
-);
-
-// 🥵 start service worker mock in development mode
-worker.start({ onUnhandledRequest: "bypass" });
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <Provider store={store}>
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>
+  </Provider>
+ 
+)
