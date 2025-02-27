@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useRoutes, useLocation,useNavigate } from "react-router-dom"
 import router from "./router"
 import { message } from "antd"
+import routes from './router'
 
 // 去往登录页的组件
 function ToLogin(){
@@ -52,19 +53,9 @@ function BeforeRouterEnter(){
 
 
 function App() {  
-  return (
-    <div className="App">
-
-      {/* <Link to="/home">Home</Link> |
-      <Link to="/about">About</Link> |
-      <Link to="/user">User</Link> */}
-
-      {/* 占位符组件，类似于窗口，用来展示组件的，有点像vue中的router-view */}
-      {/* <Outlet></Outlet> */}
-      {/* {outlet} */}
-      <BeforeRouterEnter />
-    </div>
-  )
+  console.log('App rendering, current routes:', routes);
+  const outlet = useRoutes(routes);
+  return outlet;
 }
 
 export default App
