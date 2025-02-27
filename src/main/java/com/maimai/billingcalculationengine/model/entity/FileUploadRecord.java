@@ -19,7 +19,7 @@ public class FileUploadRecord {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "upload_id", nullable = false)
+    @Column(name = "upload_id")
     private Long uploadId;
 
     @Column(name = "file_name", nullable = false)

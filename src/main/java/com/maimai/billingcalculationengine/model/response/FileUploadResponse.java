@@ -3,6 +3,8 @@ package com.maimai.billingcalculationengine.model.response;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 
+import java.util.Map;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -26,7 +28,4 @@ public class FileUploadResponse {
 
     @Schema(description = "Processing result message")
     private String processingResult;
-
-    @Schema(description = "Number of records processed")
-    private Integer recordsProcessed;
 }

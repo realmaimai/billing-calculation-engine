@@ -9,9 +9,8 @@ app:
 logging:
   level:
     root: INFO
-    org.hibernate.SQL: DEBUG
     com.maimai: DEBUG
-    org.springframework.security: DEBUG
+    org.springframework.security: INFO
   file:
     name: logs/application.log
   logback:

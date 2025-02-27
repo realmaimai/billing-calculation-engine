@@ -47,19 +47,19 @@ public class FileUploadService {
     // store sheet names and column headers into a hashmap
     static {
         EXPECTED_SHEETS_AND_COLUMNS.put("client_billing", Arrays.asList(
-                "client_id", "client_name", "province", "country", "billing_tier_id"
+                "client id", "client name", "province", "country", "billing tier id"
         ));
 
         EXPECTED_SHEETS_AND_COLUMNS.put("portfolio", Arrays.asList(
-                "client_id", "portfolio_id", "portfolio_currency"
+                "client id", "portfolio id", "portfolio currency"
         ));
 
         EXPECTED_SHEETS_AND_COLUMNS.put("assets", Arrays.asList(
-                "asset_id", "portfolio_id", "asset_value", "currency", "date"
+                "asset id", "portfolio id", "asset value", "currency", "date"
         ));
 
         EXPECTED_SHEETS_AND_COLUMNS.put("billing_tier", Arrays.asList(
-                "tier_id", "portfolio_aum_min($)", "portfolio_aum_max($)", "fee_percentage(%)"
+                "tier id", "portfolio aum min ($)", "portfolio aum max ($)", "fee percentage (%)"
         ));
     }
 
@@ -137,6 +137,7 @@ public class FileUploadService {
     protected int processSheet(Sheet sheet) {
         String sheetName = sheet.getSheetName();
         Row headerRow = sheet.getRow(0);
+        // TODO: exception
         if (headerRow == null) {
             log.warn("Header row not found in sheet: {}", sheetName);
             return 0;
@@ -144,6 +145,7 @@ public class FileUploadService {
 
         List<String> expectedColumns = EXPECTED_SHEETS_AND_COLUMNS.get(sheetName);
         Map<String, Integer> columnIndexMap = FileUtil.validateHeaders(headerRow, expectedColumns);
+        // TODO: exception
         if (columnIndexMap == null) {
             log.warn("Invalid header in sheet: {}", sheetName);
             return 0;
@@ -176,6 +178,7 @@ public class FileUploadService {
         try {
             sheetEnum = SheetName.fromString(sheetName); // Convert string to enum
         } catch (IllegalArgumentException e) {
+            // TODO: exception
             log.warn("Unknown sheet name: {}", sheetName);
             return;
         }
@@ -198,19 +201,19 @@ public class FileUploadService {
     }
 
     private void processClientRow(Row row, Map<String, Integer> columnIndexMap) {
-        String clientId = FileUtil.getCellValueAsString(row, columnIndexMap.get("client_id"));
+        String clientId = FileUtil.getCellValueAsString(row, columnIndexMap.get("client id"));
         if (clientId == null || clientId.isEmpty()) {
-            log.error("Found row with empty client_id");
+            log.error("Found row with empty client id");
             throw new InvalidDataException(String.format("Client missing in this position, row: %d", row.getRowNum()));
         }
 
         // check if client already exists
         Optional<Client> existingClient = clientRepository.findByClientId(clientId);
 
-        String clientName = FileUtil.getCellValueAsString(row, columnIndexMap.get("client_name"));
+        String clientName = FileUtil.getCellValueAsString(row, columnIndexMap.get("client name"));
         String province = FileUtil.getCellValueAsString(row, columnIndexMap.get("province"));
         String country = FileUtil.getCellValueAsString(row, columnIndexMap.get("country"));
-        String billingTierId = FileUtil.getCellValueAsString(row, columnIndexMap.get("billing_tier_id"));
+        String billingTierId = FileUtil.getCellValueAsString(row, columnIndexMap.get("billing tier id"));
 
         Client client;
         if (existingClient.isPresent()) {
@@ -242,14 +245,16 @@ public class FileUploadService {
     }
 
     private void processPortfolioRow(Row row, Map<String, Integer> columnIndexMap) {
-        String portfolioId = FileUtil.getCellValueAsString(row, columnIndexMap.get("portfolio_id"));
+        String portfolioId = FileUtil.getCellValueAsString(row, columnIndexMap.get("portfolio id"));
         if (portfolioId == null || portfolioId.isEmpty()) {
             log.error("Row with empty portfolio_id");
             throw new InvalidDataException(String.format("Portfolio missing in this position, row: %d", row.getRowNum()));
         }
 
-        String clientId = FileUtil.getCellValueAsString(row, columnIndexMap.get("client_id"));
-        String portfolioCurrency = FileUtil.getCellValueAsString(row, columnIndexMap.get("portfolio_currency"));
+        String clientId = FileUtil.getCellValueAsString(row, columnIndexMap.get("client id"));
+        String portfolioCurrency = FileUtil.getCellValueAsString(row, columnIndexMap.get("portfolio currency"));
+        log.debug("Processing row {} with clientId: {}, portfolioCurrency: {}",
+                row.getRowNum(), clientId, portfolioCurrency);
 
         // validate client exists
         if (clientRepository.findByClientId(clientId).isEmpty()) {
@@ -286,16 +291,18 @@ public class FileUploadService {
     }
 
     private void processBillingTierRow(Row row, Map<String, Integer> columnIndexMap) {
-        String tierId = FileUtil.getCellValueAsString(row, columnIndexMap.get("tier_id"));
+        String tierId = FileUtil.getCellValueAsString(row, columnIndexMap.get("tier id"));
         if (tierId == null || tierId.isEmpty()) {
             log.error("Found row with empty tier_id in row {}", row.getRowNum());
-            throw new InvalidDataException(String.format("Found row %d with empty tier_id", row.getRowNum()));
+            throw new InvalidDataException(String.format("Found row %d with empty tier id", row.getRowNum()));
         }
 
         // handle column names with special characters
-        BigDecimal minAum = FileUtil.getCellValueAsBigDecimal(row, columnIndexMap.get("portfolio_aum_min($)"));
-        BigDecimal maxAum = FileUtil.getCellValueAsBigDecimal(row, columnIndexMap.get("portfolio_aum_max($)"));
-        BigDecimal feePercentage = FileUtil.getCellValueAsBigDecimal(row, columnIndexMap.get("fee_percentage(%)"));
+        BigDecimal minAum = FileUtil.getCellValueAsBigDecimal(row, columnIndexMap.get("portfolio aum min ($)"));
+        BigDecimal maxAum = FileUtil.getCellValueAsBigDecimal(row, columnIndexMap.get("portfolio aum max ($)"));
+        BigDecimal feePercentage = FileUtil.getCellValueAsBigDecimal(row, columnIndexMap.get("fee percentage (%)"));
+        log.debug("Processing row {} with tierId: {}, minAum: {}, maxAum: {}, feePercentage: {}%",
+                row.getRowNum(), tierId, minAum, maxAum, feePercentage);
 
         // validate fee percentage is between 0 and 100
         if (feePercentage.compareTo(BigDecimal.ZERO) < 0 || feePercentage.compareTo(new BigDecimal("100")) > 0) {
@@ -309,20 +316,22 @@ public class FileUploadService {
             throw new InvalidDataException(String.format("Invalid AUM range for tier %s: min(%s) > max(%s).", tierId, minAum, maxAum));
         }
 
-        // Create the composite key
+        // create the composite key
         BillingTierKey billingTierKey = new BillingTierKey(tierId, minAum, maxAum);
 
-        // Look for the tier using the complete composite key
+        // look for the tier using the complete composite key
         Optional<BillingTier> existingTier = billingTierRepository.findById(billingTierKey);
 
         BillingTier billingTier;
         if (existingTier.isPresent()) {
-            // Update existing tier
+            // update existing tier
             billingTier = existingTier.get();
+            billingTier.setPortfolioAumMin(minAum);
+            billingTier.setPortfolioAumMax(maxAum);
             billingTier.setFeePercentage(feePercentage);
             log.debug("Updating existing billing tier: {}", tierId);
         } else {
-            // Create new tier
+            // create new tier
             billingTier = BillingTier.builder()
                     .tierId(tierId)
                     .portfolioAumMin(minAum)
@@ -337,8 +346,8 @@ public class FileUploadService {
     }
 
     private void processAssetRow(Row row, Map<String, Integer> columnIndexMap) {
-        String assetId = FileUtil.getCellValueAsString(row, columnIndexMap.get("asset_id"));
-        String portfolioId = FileUtil.getCellValueAsString(row, columnIndexMap.get("portfolio_id"));
+        String assetId = FileUtil.getCellValueAsString(row, columnIndexMap.get("asset id"));
+        String portfolioId = FileUtil.getCellValueAsString(row, columnIndexMap.get("portfolio id"));
 
         if (assetId == null || assetId.isEmpty() ) {
             log.error("Found row with empty asset_id");
@@ -359,6 +368,8 @@ public class FileUploadService {
         BigDecimal assetValue = FileUtil.getCellValueAsBigDecimal(row, columnIndexMap.get("asset_value"));
         String currency = FileUtil.getCellValueAsString(row, columnIndexMap.get("currency"));
         LocalDate date = FileUtil.getCellValueAsDate(row, columnIndexMap.get("date"));
+        log.debug("Processing asset row {}: value: {}, currency: {}, date: {}",
+                row.getRowNum(), assetValue, currency, date);
 
         if (date == null) {
             log.error("Found row with empty date for asset {}", assetId);
@@ -371,18 +382,9 @@ public class FileUploadService {
         }
 
         // get all assets for this portfolio
-        List<Asset> existingAssets = assetRepository.findAllByPortfolioId(portfolioId);
+        AssetKey assetKey = new AssetKey(date, portfolioId, assetId);
 
-        // find if this exact asset exists (same date, portfolio, asset ID)
-        Optional<Asset> existingAsset = Optional.empty();
-        for (Asset a : existingAssets) {
-            if (a.getAssetId().equals(assetId) &&
-                    a.getPortfolioId().equals(portfolioId) &&
-                    a.getDate().isEqual(date)) {
-                existingAsset = Optional.of(a);
-                break;
-            }
-        }
+        Optional<Asset> existingAsset = assetRepository.findById(assetKey);
 
         Asset asset;
         if (existingAsset.isPresent()) {

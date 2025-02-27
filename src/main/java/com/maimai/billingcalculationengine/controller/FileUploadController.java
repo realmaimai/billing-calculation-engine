@@ -38,7 +38,6 @@ public class FileUploadController {
 
             // Convert entity to response
             FileUploadResponse response = FileUploadResponse.builder()
-                    .uploadId(uploadRecord.getUploadId())
                     .fileName(uploadRecord.getFileName())
                     .fileType(uploadRecord.getFileType())
                     .fileSize(uploadRecord.getFileSize())
