@@ -1,0 +1,19 @@
+app:
+  datasource:
+    host: localhost
+    port: 5432
+    database: billing_engine
+    username: yule
+    password: Wc123123
+
+logging:
+  level:
+    root: WARN
+    org.hibernate: ERROR
+    com.zaxxer.hikari: WARN
+    com.maimai: INFO
+  file:
+    name: logs/application.log
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
