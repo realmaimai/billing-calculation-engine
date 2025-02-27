@@ -2,7 +2,7 @@ import type { BasicStatus, PermissionType } from "./enum";
 
 export interface UserToken {
 	accessToken?: string;
-	refreshToken?: string;
+	refreshToken?: string | null;
 }
 
 export interface UserInfo {
@@ -11,9 +11,9 @@ export interface UserInfo {
 	username: string;
 	password?: string;
 	avatar?: string;
-	role?: Role;
-	status?: BasicStatus;
-	permissions?: Permission[];
+	role?: Role | null;
+	status?: BasicStatus | null;
+	permissions?: Permission[] | null;
 }
 
 export interface Organization {
@@ -51,4 +51,53 @@ export interface Role {
 	order?: number;
 	desc?: string;
 	permission?: Permission[];
+}
+
+export interface Client {
+	clientId: string;
+	clientName: string;
+	province: string;
+	country: string;
+	billingTierId: string;
+	totalAum: number;
+	totalFee: number;
+	effectiveFeeRate: number;
+}
+
+export interface BillingTier {
+	tierId: string;
+	portfolioAumMin: number;
+	portfolioAumMax: number;
+	feePercentage: number;
+}
+
+export interface Asset {
+	date: string;
+	portfolioId: string;
+	assetId: string;
+	assetValue: number;
+	currency: string;
+	createdAt: string;
+	updatedAt: string;
+	createdBy: string | null;
+	updatedBy: string | null;
+}
+
+export interface FileRecord {
+	uploadId: number;
+	fileName: string;
+	fileType: string;
+	uploadDate: string;
+	createdBy: string;
+	fileSize: number;
+	status: string;
+	processingResult: string;
+}
+
+export interface Portfolio {
+	portfolioId: string;
+	clientId: string;
+	portfolioCurrency: string;
+	portfolioAum: number;
+	portfolioFee: number;
 }
