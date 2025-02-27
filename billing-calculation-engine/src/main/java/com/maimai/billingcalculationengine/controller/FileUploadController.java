@@ -26,11 +26,13 @@ public class FileUploadController {
         String contentType = file.getContentType();
         if (contentType == null || !(
                 contentType.equals("application/vnd.ms-excel") ||
-                        contentType.equals("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))) {
+                        contentType.equals("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") ||
+                        contentType.equals("text/csv"))) {
             log.warn("Invalid file type: {}", contentType);
             return Result.fail(400, "Invalid file type. Only Excel files (.xls, .xlsx) are supported.");
         }
 
+        // todo: handle csv
         try {
             FileUploadRecord uploadRecord = fileUploadService.upload(file);
 
