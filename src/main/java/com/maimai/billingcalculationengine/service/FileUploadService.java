@@ -7,6 +7,8 @@ import com.maimai.billingcalculationengine.common.utils.FileUtil;
 import com.maimai.billingcalculationengine.model.entity.*;
 import com.maimai.billingcalculationengine.repository.*;
 import jakarta.annotation.Resource;
+import lombok.AllArgsConstructor;
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -43,6 +45,17 @@ public class FileUploadService {
     private static final Map<String, List<String>> EXPECTED_SHEETS_AND_COLUMNS = new HashMap<>();
 
     private static final Long currentUserId = BaseContext.getCurrentId();
+
+    // a validationError class to track information about each error
+    // it only used in this class so no need to create in other place
+    @Data
+    @AllArgsConstructor
+    private static class ValidationError {
+        private String sheetName;
+        private int rowNum;
+        private String columnName;
+        private String errorMessage;
+    }
 
     // store sheet names and column headers into a hashmap
     static {
@@ -87,19 +100,38 @@ public class FileUploadService {
 
         // start processing file
         try {
-            String resultSummary = processExcelFile(file);
+            Map<String, Object> processingResult = processExcelFile(file);
+            List<ValidationError> errors = (List<ValidationError>) processingResult.get("errors");
+
+            // check for validation errors and provide detailed error report
+            if (!errors.isEmpty()) {
+                // if there are validation errors, roll back and return error details
+                StringBuilder errorMessage = new StringBuilder("Validation errors found:\n");
+                for (ValidationError error : errors) {
+                    errorMessage.append(String.format("Sheet: %s, Row: %d, Column: %s, Error: %s\n",
+                            error.getSheetName(), error.getRowNum(), error.getColumnName(), error.getErrorMessage()));
+                }
+
+                savedRecord.setStatus("FAILED");
+                savedRecord.setProcessingResult(errorMessage.toString());
+                return fileUploadRepository.save(savedRecord);
+            }
+
+            // if successful, return success message with processing stats
+            String resultSummary = (String) processingResult.get("summary");
             savedRecord.setStatus("COMPLETED");
             savedRecord.setProcessingResult(resultSummary);
             return fileUploadRepository.save(savedRecord);
         } catch (Exception e) {
             log.error("Error processing file: {}", e.getMessage(), e);
+            // if failed
             savedRecord.setStatus("FAILED");
             savedRecord.setProcessingResult("Error: " + e.getMessage());
             return fileUploadRepository.save(savedRecord);
         }
     }
 
-    protected String processExcelFile(MultipartFile file) throws IOException {
+    protected Map<String, Object> processExcelFile(MultipartFile file) throws IOException {
         Workbook workbook;
         try {
             workbook = new XSSFWorkbook(file.getInputStream());
@@ -110,6 +142,8 @@ public class FileUploadService {
         Map<String, Integer> processingStats = new HashMap<>();
         // upload result description
         StringBuilder resultSummary = new StringBuilder();
+        // errors for this file
+        List<ValidationError> validationErrors = new ArrayList<>();
 
         // process each sheet
         for (String sheetName : EXPECTED_SHEETS_AND_COLUMNS.keySet()) {
@@ -121,7 +155,12 @@ public class FileUploadService {
             }
 
             log.info("Processing sheet {}", sheetName);
-            int rowProcessed = processSheet(sheet);
+            Map<String, Object> sheetResult = processSheet(sheet);
+            int rowProcessed = (int) sheetResult.get("processedRows");
+            List<ValidationError> sheetErrors = (List<ValidationError>) sheetResult.get("errors");
+
+            // collect errors from each sheet to processing stats map
+            validationErrors.addAll(sheetErrors);
             processingStats.put(sheetName, rowProcessed);
             resultSummary.append("Processed ").append(rowProcessed)
                     .append(" rows from '").append(sheetName).append("'. ");
@@ -131,30 +170,49 @@ public class FileUploadService {
         resultSummary.append("Finish processing sheet, sheets amount: %d").append(processingStats.size());
 
         workbook.close();
-        return resultSummary.toString();
+
+        // return both the summary and collected validation errors
+        Map<String, Object> result = new HashMap<>();
+        result.put("summary", resultSummary.toString());
+        result.put("errors", validationErrors);
+        return result;
     }
 
-    protected int processSheet(Sheet sheet) {
+    protected Map<String, Object> processSheet(Sheet sheet) {
         String sheetName = sheet.getSheetName();
         Row headerRow = sheet.getRow(0);
-        // TODO: exception
+        // a list to store each sheet's error
+        List<ValidationError> validationErrors = new ArrayList<>();
+
         if (headerRow == null) {
+            // record the error then stop the rest of the operation
             log.warn("Header row not found in sheet: {}", sheetName);
-            return 0;
+            validationErrors.add(new ValidationError(sheetName, 0, "HEADER", "Header row not found"));
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("processedRows", 0);
+            result.put("errors", validationErrors);
+            return result;
         }
 
         List<String> expectedColumns = EXPECTED_SHEETS_AND_COLUMNS.get(sheetName);
         Map<String, Integer> columnIndexMap = FileUtil.validateHeaders(headerRow, expectedColumns);
-        // TODO: exception
         if (columnIndexMap == null) {
-            log.warn("Invalid header in sheet: {}", sheetName);
-            return 0;
+            // record the error then stop the operation
+            validationErrors.add(new ValidationError(sheetName, 0, "HEADER",
+                    "Invalid headers. Expected: " + String.join(", ", expectedColumns)));
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("processedRows", 0);
+            result.put("errors", validationErrors);
+            return result;
         }
 
         int rowCount = 0;
         int successCount = 0;
         int totalRows = sheet.getLastRowNum();
 
+        // handle each row in sheet
         for (int i = 1; i <= totalRows; i++) {
             Row dataRow = sheet.getRow(i);
             if (dataRow == null) continue;
@@ -163,6 +221,25 @@ public class FileUploadService {
             try {
                 processDataRow(dataRow, sheetName, columnIndexMap);
                 successCount++;
+            } catch (InvalidDataException e) {
+                // extract the error information for better reporting
+                String errorMsg = e.getMessage();
+                String columnName = "UNKNOWN";
+
+                // extract column name from error message
+                if (errorMsg != null && errorMsg.contains("empty")) {
+                    for (Map.Entry<String, Integer> entry : columnIndexMap.entrySet()) {
+                        String cellValue = FileUtil.getCellValueAsString(dataRow, entry.getValue());
+                        if (cellValue == null || cellValue.isEmpty()) {
+                            columnName = entry.getKey();
+                            break;
+                        }
+                    }
+                }
+
+                // track each validation error with row and column details
+                validationErrors.add(new ValidationError(sheetName, i, columnName, errorMsg));
+                log.error("Validation error in row {} of sheet {}: {}", i, sheetName, errorMsg);
             } catch (Exception e) {
                 log.error("Error processing row {} in sheet {}: {}", i, sheetName, e.getMessage(), e);
             }
@@ -170,7 +247,11 @@ public class FileUploadService {
 
         log.info("Processed {}/{} rows successfully in sheet: {} (Total rows: {})",
                 successCount, rowCount, sheetName, totalRows);
-        return successCount;
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("processedRows", successCount);
+        result.put("errors", validationErrors);
+        return result;
     }
 
     private void processDataRow(Row dataRow, String sheetName, Map<String, Integer> columnIndexMap) {
@@ -178,9 +259,8 @@ public class FileUploadService {
         try {
             sheetEnum = SheetName.fromString(sheetName); // Convert string to enum
         } catch (IllegalArgumentException e) {
-            // TODO: exception
             log.warn("Unknown sheet name: {}", sheetName);
-            return;
+            throw new InvalidDataException("Unknown sheet name: " + sheetName);
         }
 
         // sheet selection
@@ -211,9 +291,12 @@ public class FileUploadService {
         Optional<Client> existingClient = clientRepository.findByClientId(clientId);
 
         String clientName = FileUtil.getCellValueAsString(row, columnIndexMap.get("client name"));
+        if (clientName == null || clientName.isEmpty()) throw new InvalidDataException("Client Name is required");
+
         String province = FileUtil.getCellValueAsString(row, columnIndexMap.get("province"));
         String country = FileUtil.getCellValueAsString(row, columnIndexMap.get("country"));
         String billingTierId = FileUtil.getCellValueAsString(row, columnIndexMap.get("billing tier id"));
+        if (billingTierId == null || billingTierId.isEmpty()) throw new InvalidDataException("Billing Tier ID is required");
 
         Client client;
         if (existingClient.isPresent()) {
@@ -251,8 +334,14 @@ public class FileUploadService {
             throw new InvalidDataException(String.format("Portfolio missing in this position, row: %d", row.getRowNum()));
         }
 
+        // get client ID from cell
         String clientId = FileUtil.getCellValueAsString(row, columnIndexMap.get("client id"));
+        if (clientId == null || clientId.isEmpty()) throw new InvalidDataException("Client ID is required");
+
+        // get portfolio currency from cell
         String portfolioCurrency = FileUtil.getCellValueAsString(row, columnIndexMap.get("portfolio currency"));
+        if (portfolioCurrency == null || portfolioCurrency.isEmpty()) throw new InvalidDataException("Portfolio Currency is required");
+
         log.debug("Processing row {} with clientId: {}, portfolioCurrency: {}",
                 row.getRowNum(), clientId, portfolioCurrency);
 
@@ -303,6 +392,14 @@ public class FileUploadService {
         BigDecimal feePercentage = FileUtil.getCellValueAsBigDecimal(row, columnIndexMap.get("fee percentage (%)"));
         log.debug("Processing row {} with tierId: {}, minAum: {}, maxAum: {}, feePercentage: {}%",
                 row.getRowNum(), tierId, minAum, maxAum, feePercentage);
+
+        // additional validation for numeric fields
+        // TODO: create validation/validator for these fields
+        if (minAum == null || minAum.compareTo(BigDecimal.ZERO) < 0) throw new InvalidDataException("Portfolio AUM Min must be a positive number");
+
+        if (maxAum == null || maxAum.compareTo(BigDecimal.ZERO) < 0) throw new InvalidDataException("Portfolio AUM Max must be a positive number");
+
+        if (feePercentage == null) throw new InvalidDataException("Fee Percentage is required");
 
         // validate fee percentage is between 0 and 100
         if (feePercentage.compareTo(BigDecimal.ZERO) < 0 || feePercentage.compareTo(new BigDecimal("100")) > 0) {
@@ -365,7 +462,10 @@ public class FileUploadService {
             throw new InvalidDataException(String.format("Portfolio ID does not exist for asset in row %d", row.getRowNum()));
         }
 
+
         BigDecimal assetValue = FileUtil.getCellValueAsBigDecimal(row, columnIndexMap.get("asset_value"));
+        if (assetValue == null || assetValue.compareTo(BigDecimal.ZERO) < 0) throw new InvalidDataException("Asset Value must be a positive number");
+
         String currency = FileUtil.getCellValueAsString(row, columnIndexMap.get("currency"));
         LocalDate date = FileUtil.getCellValueAsDate(row, columnIndexMap.get("date"));
         log.debug("Processing asset row {}: value: {}, currency: {}, date: {}",

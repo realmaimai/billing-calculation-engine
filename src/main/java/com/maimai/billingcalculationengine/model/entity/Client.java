@@ -1,9 +1,9 @@
 package com.maimai.billingcalculationengine.model.entity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -22,18 +22,26 @@ import java.time.LocalDateTime;
 public class Client {
 
     @Id
+    @NotBlank(message = "Client ID is required")
+    @Size(max = 10, message = "Client ID cannot exceed 10 characters")
     @Column(name = "client_id", length = 10)
     private String clientId;
 
+    @NotBlank(message = "Client name is required")
+    @Size(max = 100, message = "Client name cannot exceed 100 characters")
     @Column(name = "client_name", nullable = false, length = 100)
     private String clientName;
 
+    @Size(max = 50, message = "Province cannot exceed 50 characters")
     @Column(name = "province", length = 50)
     private String province;
 
+    @Size(max = 50, message = "Country cannot exceed 50 characters")
     @Column(name = "country", length = 50)
     private String country;
 
+    @NotBlank(message = "Billing tier ID is required")
+    @Size(max = 10, message = "Billing tier ID cannot exceed 10 characters")
     @Column(name = "billing_tier_id", length = 10)
     private String billingTierId;
 

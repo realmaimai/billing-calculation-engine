@@ -4,6 +4,8 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -22,12 +24,18 @@ import java.time.LocalDateTime;
 public class Portfolio {
 
     @Id
+    @NotBlank(message = "Portfolio ID is required")
+    @Size(max = 10, message = "Portfolio ID cannot exceed 10 characters")
     @Column(name = "portfolio_id", length = 10)
     private String portfolioId;
 
+    @NotBlank(message = "Client ID is required")
+    @Size(max = 10, message = "Client ID cannot exceed 10 characters")
     @Column(name = "client_id", nullable = false, length = 10)
     private String clientId;
 
+    @NotBlank(message = "Portfolio currency is required")
+    @Size(max = 3, message = "Currency code must be 3 characters")
     @Column(name = "portfolio_currency", nullable = false, length = 3)
     private String portfolioCurrency;
 

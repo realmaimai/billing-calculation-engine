@@ -6,8 +6,6 @@ import com.maimai.billingcalculationengine.model.response.FileUploadResponse;
 import com.maimai.billingcalculationengine.service.FileUploadService;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -38,6 +36,7 @@ public class FileUploadController {
 
             // Convert entity to response
             FileUploadResponse response = FileUploadResponse.builder()
+                    .uploadId(uploadRecord.getUploadId())
                     .fileName(uploadRecord.getFileName())
                     .fileType(uploadRecord.getFileType())
                     .fileSize(uploadRecord.getFileSize())
@@ -48,7 +47,7 @@ public class FileUploadController {
             if ("COMPLETED".equals(uploadRecord.getStatus())) {
                 return Result.success(response, "File uploaded and processed successfully");
             } else {
-                return Result.fail(400, "File upload failed: " + uploadRecord.getProcessingResult());
+                return Result.fail(response, 400, "File processing failed. See details in response.");
             }
         } catch (Exception e) {
             log.error("Error processing uploaded file", e);
