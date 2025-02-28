@@ -1,6 +1,7 @@
 const API_URL = 'http://localhost:8080/api/v1';
 
-const AUTH_TOKEN = 'eyOjEsImlhdCI6MTc0MDY1ODU3NSwiZXhwIjoxNzQwNzQ0OTc1fQ.AcAgzr7KsvRSv72BiKuFFaRy7s3ig2a9vHlJff6wK4vhwBHgfzv7X2qhtlUZCWlU'; 
+const AUTH_TOKEN = localStorage.getItem('auth_token');
+
 
 /**
  * Upload a single file to the server with progress tracking
@@ -9,23 +10,20 @@ const AUTH_TOKEN = 'eyOjEsImlhdCI6MTc0MDY1ODU3NSwiZXhwIjoxNzQwNzQ0OTc1fQ.AcAgzr7
  * @returns {Promise} - Promise that resolves to the server response
  */
 export const uploadFile = async (file, onProgress) => {
-  // Create FormData to send file
   const formData = new FormData();
-  
-  // Append the file with the name 'file' (or whatever your backend expects)
   formData.append('file', file);
-  
+
   try {
     // XMLHttpRequest to track upload progress
     const xhr = new XMLHttpRequest();
-    
+
     const promise = new Promise((resolve, reject) => {
       xhr.open('POST', `${API_URL}/files/upload`, true);
-      
+
       // set authorization header
       xhr.setRequestHeader('Authorization', `Bearer ${AUTH_TOKEN}`);
-      
-      xhr.onload = function() {
+
+      xhr.onload = function () {
         if (xhr.status >= 200 && xhr.status < 300) {
           try {
             const response = JSON.parse(xhr.responseText);
@@ -39,26 +37,26 @@ export const uploadFile = async (file, onProgress) => {
           reject(new Error(`Upload failed with status: ${xhr.status}`));
         }
       };
-      
-      xhr.onerror = function() {
+
+      xhr.onerror = function () {
         reject(new Error('Network error occurred during upload'));
       };
-      
+
       // Track upload progress
-      xhr.upload.onprogress = function(event) {
+      xhr.upload.onprogress = function (event) {
         if (event.lengthComputable && onProgress) {
           const percentComplete = Math.round((event.loaded / event.total) * 100);
           onProgress(percentComplete);
         }
       };
     });
-    
+
     // Store xhr on the promise for access to abort
     promise.xhr = xhr;
-    
+
     // Send the form data
     xhr.send(formData);
-    
+
     return promise;
   } catch (error) {
     throw new Error(`Upload service error: ${error.message}`);
@@ -82,15 +80,13 @@ export const cancelUpload = (uploadPromise) => {
  * @returns {Object} - Validation result with isValid and error
  */
 export const validateFile = (file, allowedExtensions = ['.csv', '.xls', '.xlsx']) => {
-  // Check if file exists
   if (!file) {
     return {
       isValid: false,
       error: 'No file selected'
     };
   }
-  
-  // Check file extension
+
   const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
   if (!allowedExtensions.includes(fileExtension)) {
     return {
@@ -98,16 +94,15 @@ export const validateFile = (file, allowedExtensions = ['.csv', '.xls', '.xlsx']
       error: `Invalid file format. Please upload only allowed file types (${allowedExtensions.join(', ')})`
     };
   }
-  
-  // Check file size (adjust the maximum size as needed)
-  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+
+  const MAX_FILE_SIZE = 10 * 1024 * 1024;
   if (file.size > MAX_FILE_SIZE) {
     return {
       isValid: false,
       error: `File exceeds the maximum allowed size of 5MB`
     };
   }
-  
+
   return {
     isValid: true,
     error: null

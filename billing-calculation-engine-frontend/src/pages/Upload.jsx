@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import FileUploader from '../components/upload/FileUploader';
-import UploadStatus from '../components/upload/UploadStatus';
 import UploadResult from '../components/upload/UploadResult';
 import { uploadFile, validateFile } from '../services/uploadService';
 
@@ -11,47 +10,46 @@ export default function Upload() {
   const [error, setError] = useState(null);
   const [uploadResult, setUploadResult] = useState(null);
 
-  
+
   const handleFileSelected = (files) => {
     if (files && files.length > 0) {
-      const file = files[0]; 
+      const file = files[0];
       const validation = validateFile(file);
-      
+
       if (!validation.isValid) {
         setError(validation.error);
         return;
       }
-      
+
       setSelectedFile(file);
       setError(null);
       setUploadResult(null);
     }
   };
-  
+
   const handleRemoveFile = () => {
     setSelectedFile(null);
     setError(null);
     setUploadResult(null);
   };
-  
+
   const handleStartUpload = async () => {
     if (!selectedFile) return;
-    
-    // Reset states
+
     setError(null);
     setProgress(0);
     setIsUploading(true);
     setUploadResult(null);
-    
+
     try {
       // Upload file with progress tracking
       const response = await uploadFile(selectedFile, (progressPercentage) => {
         setProgress(progressPercentage);
       });
-      
+
       // Set the result from the backend
       setUploadResult(response);
-      
+
       // Check if response has error code
       if (response.code >= 400) {
         // Handle as error but still display the result
@@ -65,12 +63,12 @@ export default function Upload() {
       setIsUploading(false);
     }
   };
-  
+
   const handleRetry = () => {
     setError(null);
     handleStartUpload();
   };
-  
+
   const handleReset = () => {
     setSelectedFile(null);
     setIsUploading(false);
@@ -78,21 +76,21 @@ export default function Upload() {
     setError(null);
     setUploadResult(null);
   };
-  
+
   return (
     <div className="py-6 w-full max-w-full">
       <h1 className="text-4xl font-bold text-center mb-10">Upload Files</h1>
-      
+
       <div className="bg-white shadow rounded-lg p-8 max-w-2xl mx-auto">
         <p className="text-gray-600 mb-6">
           Upload your CSV or Excel files here to process billing calculations.
         </p>
-        
+
         {/* Show file uploader if no file is selected or after a reset */}
         {!selectedFile && (
           <FileUploader onFilesSelected={handleFileSelected} />
         )}
-        
+
         {/* Show upload status when file is selected */}
         {selectedFile && (
           <div className="mb-6">
@@ -104,9 +102,9 @@ export default function Upload() {
                 <span className="text-gray-700">{selectedFile.name}</span>
                 <span className="ml-2 text-gray-500">({(selectedFile.size / 1024).toFixed(2)} KB)</span>
               </div>
-              
+
               {!isUploading && !uploadResult && (
-                <button 
+                <button
                   onClick={handleRemoveFile}
                   className="text-gray-400 hover:text-gray-600"
                 >
@@ -116,7 +114,7 @@ export default function Upload() {
                 </button>
               )}
             </div>
-            
+
             {/* Progress bar */}
             {isUploading && (
               <div className="mt-4">
@@ -125,14 +123,14 @@ export default function Upload() {
                   <span className="text-sm font-medium text-gray-700">{progress}%</span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2.5">
-                  <div 
-                    className="bg-indigo-600 h-2.5 rounded-full transition-all duration-300" 
+                  <div
+                    className="bg-indigo-600 h-2.5 rounded-full transition-all duration-300"
                     style={{ width: `${progress}%` }}
                   ></div>
                 </div>
               </div>
             )}
-            
+
             {/* Error message */}
             {error && (
               <div className="mt-4 bg-red-50 border border-red-200 text-red-800 rounded-md p-4">
@@ -153,7 +151,7 @@ export default function Upload() {
                 </div>
               </div>
             )}
-            
+
             {/* Action buttons */}
             {!isUploading && !uploadResult && (
               <div className="mt-4 flex justify-end">
@@ -168,12 +166,12 @@ export default function Upload() {
             )}
           </div>
         )}
-        
+
         {/* Upload Result Display */}
         {uploadResult && (
           <>
             <UploadResult result={uploadResult} />
-            
+
             <div className="mt-6 flex justify-end">
               <button
                 onClick={handleReset}

@@ -1,4 +1,3 @@
-// src/pages/Portfolios.jsx
 import { useState, useEffect } from 'react';
 import portfolioService from '../services/portfolioService';
 import AssetModal from '../components/portfolios/AssetModal';
@@ -116,25 +115,25 @@ export default function Portfolios() {
         {/* Total Portfolios */}
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-medium text-gray-500">Total Portfolios</h2>
-          <p className="text-3xl font-bold text-gray-900 mt-2">{totalPortfolios}</p>
+          <p className="text-xl font-bold text-gray-900 mt-2">{totalPortfolios}</p>
         </div>
         
         {/* Total AUM (CAD) */}
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-medium text-gray-500">Total AUM (CAD)</h2>
-          <p className="text-3xl font-bold text-gray-900 mt-2">{formatCurrency(totalCadAum, 'CAD')}</p>
+          <p className="text-xl font-bold text-gray-900 mt-2">{formatCurrency(totalCadAum, 'CAD')}</p>
         </div>
         
         {/* Total AUM (USD) */}
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-medium text-gray-500">Total AUM (USD)</h2>
-          <p className="text-3xl font-bold text-gray-900 mt-2">{formatCurrency(totalUsdAum, 'USD')}</p>
+          <p className="text-xl font-bold text-gray-900 mt-2">{formatCurrency(totalUsdAum, 'USD')}</p>
         </div>
         
         {/* Average Portfolio Size */}
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-medium text-gray-500">Average Portfolio Size</h2>
-          <p className="text-3xl font-bold text-gray-900 mt-2">{formatCurrency(avgPortfolioSize, 'CAD')}</p>
+          <p className="text-xl font-bold text-gray-900 mt-2">{formatCurrency(avgPortfolioSize, 'CAD')}</p>
         </div>
       </div>
       
@@ -149,17 +148,10 @@ export default function Portfolios() {
                 <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Currency</th>
                 <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">AUM</th>
                 <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Fee Amount</th>
-                <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Fee Rate</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {portfolios.map((portfolio) => {
-                // Calculate fee rate (avoid division by zero)
-                const feeRate = portfolio.portfolioAum > 0 
-                  ? (portfolio.portfolioFee / portfolio.portfolioAum) * 100 
-                  : 0;
-                
-                return (
+              {portfolios.map((portfolio) => (
                 <tr key={portfolio.portfolioId} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <button 
@@ -184,11 +176,8 @@ export default function Portfolios() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {formatCurrency(portfolio.portfolioFee, 'CAD')}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {feeRate.toFixed(2)}%
-                  </td>
                 </tr>
-              )})}
+              ))}
             </tbody>
           </table>
         </div>

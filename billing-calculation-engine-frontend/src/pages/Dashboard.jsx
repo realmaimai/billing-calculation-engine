@@ -1,37 +1,89 @@
 // src/pages/Dashboard.jsx
 import { useState, useEffect } from 'react';
 import dashboardService from '../services/dashboardService';
+import clientService from '../services/clientService';
+import portfolioService from '../services/portfolioService';
+import RevenueByClientChart from '../components/charts/RevenueByClientChart';
+import PortfoliosByClientChart from '../components/charts/PortfoliosByClientChart';
 
 export default function Dashboard() {
-  // State for dashboard data
+  // Original dashboard state
   const [summary, setSummary] = useState({
     totalAum: 0,
     totalFee: 0,
     totalClient: 0,
     updateDate: ''
   });
+  
+  // New states for chart data
+  const [clientRevenue, setClientRevenue] = useState([]);
+  const [portfoliosByClient, setPortfoliosByClient] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  // Fetch dashboard summary on component mount
+  // Fetch data on component mount
   useEffect(() => {
-    const fetchSummary = async () => {
+    const fetchData = async () => {
       try {
         setIsLoading(true);
-        const response = await dashboardService.getSummary();
         
-        if (response && response.data) {
-          setSummary(response.data);
+        // Fetch all required data in parallel
+        const [summaryRes, clientsRes, portfoliosRes] = await Promise.all([
+          dashboardService.getSummary(),
+          clientService.getAllClients(),
+          portfolioService.getAllPortfolios()
+        ]);
+        
+        // Process dashboard summary
+        if (summaryRes && summaryRes.data) {
+          setSummary(summaryRes.data);
+        }
+        
+        // Process clients data for revenue chart
+        if (clientsRes && clientsRes.data) {
+          // Sort clients by total fee (descending)
+          const clientsData = clientsRes.data
+            .sort((a, b) => b.totalFee - a.totalFee)
+            .slice(0, 10) // Take top 10 clients for better visualization
+            .map(client => ({
+              name: client.clientName || client.clientId,
+              value: client.totalFee
+            }));
+          
+          setClientRevenue(clientsData);
+        }
+        
+        // Process portfolios data for portfolio count by client chart
+        if (portfoliosRes && portfoliosRes.data && clientsRes && clientsRes.data) {
+          // Group portfolios by client ID
+          const portfolioGroups = {};
+          portfoliosRes.data.forEach(portfolio => {
+            if (!portfolioGroups[portfolio.clientId]) {
+              portfolioGroups[portfolio.clientId] = 0;
+            }
+            portfolioGroups[portfolio.clientId]++;
+          });
+          
+          // Map client IDs to names and create data for pie chart
+          const pieData = Object.entries(portfolioGroups).map(([clientId, count]) => {
+            const client = clientsRes.data.find(c => c.clientId === clientId);
+            return {
+              name: client ? client.clientName : clientId,
+              value: count
+            };
+          });
+          
+          setPortfoliosByClient(pieData);
         }
       } catch (err) {
-        console.error('Error fetching dashboard summary:', err);
+        console.error('Error fetching dashboard data:', err);
         setError('Failed to load dashboard data');
       } finally {
         setIsLoading(false);
       }
     };
     
-    fetchSummary();
+    fetchData();
   }, []);
   
   // Format currency
@@ -46,11 +98,6 @@ export default function Dashboard() {
     const options = { year: 'numeric', month: 'long', day: 'numeric' };
     return new Date(dateString).toLocaleDateString('en-US', options);
   };
-  
-  // Calculate effective fee rate (avoid division by zero)
-  const effectiveFeeRate = summary.totalAum > 0 
-    ? (summary.totalFee / summary.totalAum) * 100 
-    : 0;
   
   // Loading state
   if (isLoading) {
@@ -144,18 +191,15 @@ export default function Dashboard() {
             <p className="text-3xl font-bold text-gray-900">{summary.totalClient}</p>
           </div>
         </div>
-        
       </div>
       
-      {/* Welcome message */}
-      <div className="bg-white shadow overflow-hidden sm:rounded-lg mb-8">
-        <div className="px-6 py-5">
-          <h2 className="text-lg font-medium text-gray-900">Welcome to Billing Calculation Engine</h2>
-          <p className="mt-2 text-gray-600">
-            Use the navigation to explore clients, portfolios, and billing data.
-            This dashboard shows the summary of your billing data as of {formatDate(summary.updateDate)}.
-          </p>
-        </div>
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        {/* Revenue by Client Bar Chart */}
+        <RevenueByClientChart data={clientRevenue} />
+        
+        {/* Portfolio Count by Client Pie Chart */}
+        <PortfoliosByClientChart data={portfoliosByClient} />
       </div>
       
       {/* Next steps or quick links */}

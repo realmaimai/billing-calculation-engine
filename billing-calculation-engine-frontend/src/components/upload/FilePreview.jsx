@@ -7,10 +7,10 @@ const FilePreview = ({ file, onClose }) => {
     isLoading: true,
     error: null
   });
-  
+
   // Determine file type for appropriate preview
   const fileType = file?.name.split('.').pop().toLowerCase();
-  
+
   useEffect(() => {
     if (!file) {
       setPreview({
@@ -21,16 +21,16 @@ const FilePreview = ({ file, onClose }) => {
       });
       return;
     }
-    
+
     const readFile = async () => {
       try {
         setPreview(prev => ({ ...prev, isLoading: true, error: null }));
-        
+
         // For CSV files
         if (fileType === 'csv') {
           const text = await readTextFile(file);
           const { headers, rows } = parseCSV(text);
-          
+
           setPreview({
             headers,
             rows: rows.slice(0, 10), // Limit to first 10 rows for preview
@@ -38,7 +38,7 @@ const FilePreview = ({ file, onClose }) => {
             isLoading: false,
             error: null
           });
-        } 
+        }
         // For Excel files, we'd need a library like xlsx 
         // This is a placeholder for the actual implementation
         else if (['xls', 'xlsx'].includes(fileType)) {
@@ -58,10 +58,10 @@ const FilePreview = ({ file, onClose }) => {
         });
       }
     };
-    
+
     readFile();
   }, [file, fileType]);
-  
+
   // Read file as text
   const readTextFile = (file) => {
     return new Promise((resolve, reject) => {
@@ -71,12 +71,12 @@ const FilePreview = ({ file, onClose }) => {
       reader.readAsText(file);
     });
   };
-  
+
   // Simple CSV parser (would need more robust implementation for production)
   const parseCSV = (text) => {
     const lines = text.split('\n').filter(line => line.trim());
     const headers = lines[0].split(',').map(header => header.trim());
-    
+
     const rows = lines.slice(1).map(line => {
       const values = line.split(',').map(value => value.trim());
       return headers.reduce((obj, header, i) => {
@@ -84,10 +84,10 @@ const FilePreview = ({ file, onClose }) => {
         return obj;
       }, {});
     });
-    
+
     return { headers, rows };
   };
-  
+
   return (
     <div className="bg-white rounded-lg shadow-lg overflow-hidden max-w-full">
       <div className="flex justify-between items-center bg-gray-50 px-4 py-3 border-b">
@@ -103,7 +103,7 @@ const FilePreview = ({ file, onClose }) => {
           </svg>
         </button>
       </div>
-      
+
       <div className="px-4 py-4">
         {/* File metadata */}
         <div className="mb-4 grid grid-cols-2 gap-4 text-sm">
@@ -122,7 +122,7 @@ const FilePreview = ({ file, onClose }) => {
             </div>
           )}
         </div>
-        
+
         {/* Loading state */}
         {preview.isLoading && (
           <div className="py-8 text-center">
@@ -133,14 +133,14 @@ const FilePreview = ({ file, onClose }) => {
             <p className="mt-2 text-gray-600">Loading file preview...</p>
           </div>
         )}
-        
+
         {/* Error state */}
         {preview.error && (
           <div className="py-4 text-center text-red-600">
             {preview.error}
           </div>
         )}
-        
+
         {/* Data preview */}
         {!preview.isLoading && !preview.error && preview.headers.length > 0 && (
           <div className="overflow-x-auto">
@@ -148,7 +148,7 @@ const FilePreview = ({ file, onClose }) => {
               <thead className="bg-gray-50">
                 <tr>
                   {preview.headers.map((header, index) => (
-                    <th 
+                    <th
                       key={index}
                       scope="col"
                       className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
@@ -162,7 +162,7 @@ const FilePreview = ({ file, onClose }) => {
                 {preview.rows.map((row, rowIndex) => (
                   <tr key={rowIndex} className={rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                     {preview.headers.map((header, colIndex) => (
-                      <td 
+                      <td
                         key={`${rowIndex}-${colIndex}`}
                         className="px-6 py-2 whitespace-nowrap text-sm text-gray-500"
                       >
@@ -173,7 +173,7 @@ const FilePreview = ({ file, onClose }) => {
                 ))}
               </tbody>
             </table>
-            
+
             {preview.totalRows > preview.rows.length && (
               <div className="py-3 text-center text-sm text-gray-500">
                 Showing {preview.rows.length} of {preview.totalRows} rows
@@ -182,7 +182,7 @@ const FilePreview = ({ file, onClose }) => {
           </div>
         )}
       </div>
-      
+
       <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
         <button
           type="button"

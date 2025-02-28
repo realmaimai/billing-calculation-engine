@@ -1,10 +1,10 @@
 import React from 'react';
 
-const UploadStatus = ({ 
-  files = [], 
-  isUploading = false, 
-  progress = 0, 
-  error = null, 
+const UploadStatus = ({
+  files = [],
+  isUploading = false,
+  progress = 0,
+  error = null,
   success = false,
   onRemoveFile,
   onStartUpload,
@@ -28,7 +28,7 @@ const UploadStatus = ({
                   <span className="ml-2 text-gray-500">({(file.size / 1024).toFixed(2)} KB)</span>
                 </div>
                 {!isUploading && (
-                  <button 
+                  <button
                     onClick={() => onRemoveFile && onRemoveFile(index)}
                     className="text-gray-400 hover:text-gray-600"
                   >
@@ -40,7 +40,7 @@ const UploadStatus = ({
               </li>
             ))}
           </ul>
-          
+
           {/* Progress bar */}
           {isUploading && (
             <div className="mt-4">
@@ -49,14 +49,14 @@ const UploadStatus = ({
                 <span className="text-sm font-medium text-gray-700">{progress}%</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2.5">
-                <div 
-                  className="bg-indigo-600 h-2.5 rounded-full transition-all duration-300" 
+                <div
+                  className="bg-indigo-600 h-2.5 rounded-full transition-all duration-300"
                   style={{ width: `${progress}%` }}
                 ></div>
               </div>
             </div>
           )}
-          
+
           {/* Error message */}
           {error && (
             <div className="mt-4 bg-red-50 border border-red-200 text-red-800 rounded-md p-4">
@@ -77,9 +77,9 @@ const UploadStatus = ({
               </div>
             </div>
           )}
-          
+
           {/* Success message */}
-          {success && (
+          {success && !error && (
             <div className="mt-4 bg-green-50 border border-green-200 text-green-800 rounded-md p-4">
               <div className="flex">
                 <svg className="h-5 w-5 text-green-400 mr-2" viewBox="0 0 20 20" fill="currentColor">
@@ -89,7 +89,7 @@ const UploadStatus = ({
               </div>
             </div>
           )}
-          
+
           {/* Action buttons */}
           <div className="mt-4 flex justify-end space-x-3">
             {!isUploading && !success && (
@@ -101,7 +101,7 @@ const UploadStatus = ({
                 Upload Files
               </button>
             )}
-            
+
             {isUploading && (
               <button
                 onClick={onCancel}
