@@ -1,4 +1,3 @@
-// src/hooks/useFileUpload.js
 import { useState, useCallback } from 'react';
 import { uploadFiles, cancelUpload, validateFiles } from '../services/uploadService';
 

@@ -1,4 +1,3 @@
-// src/components/portfolios/AssetModal.jsx
 import React, { useState, useEffect } from 'react';
 import assetService from '../../services/assetService';
 
