@@ -1,37 +1,102 @@
-// pages/Dashboard.jsx
-import { Card, CardHeader, CardBody } from '../components/ui/Card';
-import { Badge } from '../components/ui/Badges';
-import { Button } from '../components/ui/Button';
-import { Alert } from '../components/ui/Alert';
+// src/pages/Dashboard.jsx
+import { useState, useEffect } from 'react';
+import dashboardService from '../services/dashboardService';
 
 export default function Dashboard() {
+  // State for dashboard data
+  const [summary, setSummary] = useState({
+    totalAum: 0,
+    totalFee: 0,
+    totalClient: 0,
+    updateDate: ''
+  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
+  // Fetch dashboard summary on component mount
+  useEffect(() => {
+    const fetchSummary = async () => {
+      try {
+        setIsLoading(true);
+        const response = await dashboardService.getSummary();
+        
+        if (response && response.data) {
+          setSummary(response.data);
+        }
+      } catch (err) {
+        console.error('Error fetching dashboard summary:', err);
+        setError('Failed to load dashboard data');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchSummary();
+  }, []);
+  
+  // Format currency
+  const formatCurrency = (amount) => {
+    return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+  
+  // Format date
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    
+    const options = { year: 'numeric', month: 'long', day: 'numeric' };
+    return new Date(dateString).toLocaleDateString('en-US', options);
+  };
+  
+  // Calculate effective fee rate (avoid division by zero)
+  const effectiveFeeRate = summary.totalAum > 0 
+    ? (summary.totalFee / summary.totalAum) * 100 
+    : 0;
+  
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="py-6 px-4 sm:px-6 lg:px-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-6">Dashboard</h1>
+        <div className="bg-white shadow rounded-md p-4">
+          <p className="text-gray-500">Loading dashboard data...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  // Error state
+  if (error) {
+    return (
+      <div className="py-6 px-4 sm:px-6 lg:px-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-6">Dashboard</h1>
+        <div className="bg-red-50 border border-red-200 text-red-800 rounded-md p-4">
+          <p className="font-medium">Error loading dashboard</p>
+          <p className="mt-1">{error}</p>
+          <button 
+            className="mt-2 inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+            onClick={() => window.location.reload()}
+          >
+            Reload
+          </button>
+        </div>
+      </div>
+    );
+  }
+  
   return (
-    <div className="py-6 px-4 sm:px-6 lg:px-8 w-full">
+    <div className="py-6 px-4 sm:px-6 lg:px-8">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        
-        <div className="flex space-x-3">
-          <Button size="sm" variant="secondary">Export Data</Button>
-          <Button size="sm">Refresh</Button>
+        <div className="text-sm text-gray-500">
+          Last updated: {formatDate(summary.updateDate)}
         </div>
       </div>
       
-      {/* Alert component example */}
-      <Alert 
-        type="info" 
-        title="Welcome to the Billing Calculation Engine" 
-        onDismiss={() => console.log('dismissed')}
-      >
-        This dashboard shows the current billing information as of December 31, 2024.
-      </Alert>
-      
-      <div className="my-6"></div>
-      
-      {/* Key Metrics Section using Card components */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      {/* Key Metrics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         {/* Total Revenue Card */}
-        <Card>
-          <CardBody>
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="px-6 py-5 border-b border-gray-200">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-medium text-gray-500">Total Revenue</h2>
               <div className="p-2 rounded-full bg-green-100">
@@ -40,16 +105,32 @@ export default function Dashboard() {
                 </svg>
               </div>
             </div>
-            <div className="mt-4">
-              <p className="text-3xl font-bold text-gray-900">$1,245,890</p>
-              <p className="text-sm text-gray-500 mt-1">As of December 31, 2024</p>
+          </div>
+          <div className="px-6 py-5">
+            <p className="text-3xl font-bold text-gray-900">{formatCurrency(summary.totalFee)}</p>
+          </div>
+        </div>
+        
+        {/* Total AUM Card */}
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="px-6 py-5 border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-medium text-gray-500">Total AUM</h2>
+              <div className="p-2 rounded-full bg-indigo-100">
+                <svg className="h-6 w-6 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+              </div>
             </div>
-          </CardBody>
-        </Card>
+          </div>
+          <div className="px-6 py-5">
+            <p className="text-3xl font-bold text-gray-900">{formatCurrency(summary.totalAum)}</p>
+          </div>
+        </div>
         
         {/* Total Clients Card */}
-        <Card>
-          <CardBody>
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="px-6 py-5 border-b border-gray-200">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-medium text-gray-500">Total Clients</h2>
               <div className="p-2 rounded-full bg-blue-100">
@@ -58,105 +139,62 @@ export default function Dashboard() {
                 </svg>
               </div>
             </div>
-            <div className="mt-4">
-              <p className="text-3xl font-bold text-gray-900">128</p>
-              <p className="text-sm text-gray-500 mt-1">5% increase from last quarter</p>
-            </div>
-          </CardBody>
-        </Card>
-        
-        {/* Average Fee Rate Card */}
-        <Card>
-          <CardBody>
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-medium text-gray-500">Average Fee Rate</h2>
-              <div className="p-2 rounded-full bg-purple-100">
-                <svg className="h-6 w-6 text-purple-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-              </div>
-            </div>
-            <div className="mt-4">
-              <p className="text-3xl font-bold text-gray-900">0.85%</p>
-              <p className="text-sm text-gray-500 mt-1">Based on all clients</p>
-            </div>
-          </CardBody>
-        </Card>
-      </div>
-      
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        {/* Revenue by Client Tier Chart */}
-        <Card>
-          <CardHeader 
-            title="Revenue by Client Tier" 
-            actions={<Button variant="secondary" size="sm">View Details</Button>}
-          />
-          <CardBody className="p-0">
-            <div className="aspect-w-16 aspect-h-9 bg-gray-100 rounded-lg flex items-center justify-center h-64">
-              <div className="text-gray-400 flex flex-col items-center">
-                <svg className="h-12 w-12 mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-                <p>Chart visualization will appear here</p>
-              </div>
-            </div>
-          </CardBody>
-        </Card>
-        
-        {/* Fee Distribution Chart */}
-        <Card>
-          <CardHeader 
-            title="Fee Distribution" 
-            actions={<Button variant="secondary" size="sm">View Details</Button>}
-          />
-          <CardBody className="p-0">
-            <div className="aspect-w-16 aspect-h-9 bg-gray-100 rounded-lg flex items-center justify-center h-64">
-              <div className="text-gray-400 flex flex-col items-center">
-                <svg className="h-12 w-12 mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                <p>Chart visualization will appear here</p>
-              </div>
-            </div>
-          </CardBody>
-        </Card>
-      </div>
-      
-      {/* Top Clients Section */}
-      <Card className="mb-8">
-        <CardHeader title="Top Clients by Revenue" />
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client Name</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">AUM (CAD)</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fee Amount</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Effective Rate</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {[1, 2, 3, 4, 5].map((item) => (
-                <tr key={item} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Client {item}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Toronto, ON</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${(Math.random() * 10000000).toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,')}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${(Math.random() * 100000).toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,')}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{(Math.random() * 1.5).toFixed(2)}%</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <Badge color={Math.random() > 0.5 ? 'green' : 'blue'}>
-                      {Math.random() > 0.5 ? 'Active' : 'New'}
-                    </Badge>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          </div>
+          <div className="px-6 py-5">
+            <p className="text-3xl font-bold text-gray-900">{summary.totalClient}</p>
+          </div>
         </div>
-      </Card>
+        
+      </div>
+      
+      {/* Welcome message */}
+      <div className="bg-white shadow overflow-hidden sm:rounded-lg mb-8">
+        <div className="px-6 py-5">
+          <h2 className="text-lg font-medium text-gray-900">Welcome to Billing Calculation Engine</h2>
+          <p className="mt-2 text-gray-600">
+            Use the navigation to explore clients, portfolios, and billing data.
+            This dashboard shows the summary of your billing data as of {formatDate(summary.updateDate)}.
+          </p>
+        </div>
+      </div>
+      
+      {/* Next steps or quick links */}
+      <div className="bg-white shadow overflow-hidden sm:rounded-lg">
+        <div className="px-6 py-5 border-b border-gray-200">
+          <h2 className="text-lg font-medium text-gray-900">Quick Actions</h2>
+        </div>
+        <div className="px-6 py-5">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <a 
+              href="/clients" 
+              className="px-4 py-3 bg-indigo-50 rounded-lg text-indigo-700 flex items-center hover:bg-indigo-100 transition-colors"
+            >
+              <svg className="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+              View Clients
+            </a>
+            <a 
+              href="/portfolios" 
+              className="px-4 py-3 bg-indigo-50 rounded-lg text-indigo-700 flex items-center hover:bg-indigo-100 transition-colors"
+            >
+              <svg className="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              View Portfolios
+            </a>
+            <a 
+              href="/upload" 
+              className="px-4 py-3 bg-indigo-50 rounded-lg text-indigo-700 flex items-center hover:bg-indigo-100 transition-colors"
+            >
+              <svg className="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+              </svg>
+              Upload Data
+            </a>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

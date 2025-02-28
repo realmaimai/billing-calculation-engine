@@ -1,9 +1,6 @@
-// src/services/uploadService.js
-
 const API_URL = 'http://localhost:8080/api/v1';
 
-// Your JWT token - replace with your actual token
-const AUTH_TOKEN = 'eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjEsImlhdCI6MTc0MDY1ODU3NSwiZXhwIjoxNzQwNzQ0OTc1fQ.AcAgzr7KsvRSv72BiKuFFaRy7s3ig2a9vHlJff6wK4vhwBHgfzv7X2qhtlUZCWlU'; 
+const AUTH_TOKEN = 'eyOjEsImlhdCI6MTc0MDY1ODU3NSwiZXhwIjoxNzQwNzQ0OTc1fQ.AcAgzr7KsvRSv72BiKuFFaRy7s3ig2a9vHlJff6wK4vhwBHgfzv7X2qhtlUZCWlU'; 
 
 /**
  * Upload a single file to the server with progress tracking
@@ -19,14 +16,13 @@ export const uploadFile = async (file, onProgress) => {
   formData.append('file', file);
   
   try {
-    // Create XMLHttpRequest to track upload progress
+    // XMLHttpRequest to track upload progress
     const xhr = new XMLHttpRequest();
     
-    // Create a promise that will resolve with the response
     const promise = new Promise((resolve, reject) => {
       xhr.open('POST', `${API_URL}/files/upload`, true);
       
-      // IMPORTANT: Set the Authorization header AFTER opening the connection
+      // set authorization header
       xhr.setRequestHeader('Authorization', `Bearer ${AUTH_TOKEN}`);
       
       xhr.onload = function() {

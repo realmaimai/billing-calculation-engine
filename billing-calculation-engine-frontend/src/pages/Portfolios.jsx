@@ -1,78 +1,140 @@
-// pages/Portfolios.jsx
+// src/pages/Portfolios.jsx
+import { useState, useEffect } from 'react';
+import portfolioService from '../services/portfolioService';
+import AssetModal from '../components/portfolios/AssetModal';
+
 export default function Portfolios() {
-  // Sample data for portfolios table
-  const portfolios = [
-    { id: 'PTF001', clientName: 'Acme Corporation', currency: 'CAD', aum: 3500000, assetCount: 12, created: '2024-01-15' },
-    { id: 'PTF002', clientName: 'Global Industries', currency: 'USD', aum: 2800000, assetCount: 8, created: '2024-02-22' },
-    { id: 'PTF003', clientName: 'Acme Corporation', currency: 'CAD', aum: 5250000, assetCount: 15, created: '2024-03-08' },
-    { id: 'PTF004', clientName: 'Northern Trust', currency: 'CAD', aum: 3200000, assetCount: 10, created: '2024-01-30' },
-    { id: 'PTF005', clientName: 'Sunrise Capital', currency: 'USD', aum: 4800000, assetCount: 14, created: '2024-04-15' },
-    { id: 'PTF006', clientName: 'Atlas Partners', currency: 'CAD', aum: 9500000, assetCount: 22, created: '2024-05-10' },
-    { id: 'PTF007', clientName: 'Phoenix Fund', currency: 'USD', aum: 2100000, assetCount: 7, created: '2024-06-01' },
-    { id: 'PTF008', clientName: 'Horizon Group', currency: 'CAD', aum: 2800000, assetCount: 9, created: '2024-06-22' },
-    { id: 'PTF009', clientName: 'Evergreen Investments', currency: 'USD', aum: 6300000, assetCount: 18, created: '2024-07-12' },
-    { id: 'PTF010', clientName: 'Evergreen Investments', currency: 'CAD', aum: 6000000, assetCount: 16, created: '2024-08-05' },
-  ];
-
-  // Format currency function
+  // State for portfolios data
+  const [portfolios, setPortfolios] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
+  // State for the selected portfolio (for modal)
+  const [selectedPortfolio, setSelectedPortfolio] = useState(null);
+  
+  // Fetch portfolios on component mount
+  useEffect(() => {
+    const fetchPortfolios = async () => {
+      try {
+        setIsLoading(true);
+        const response = await portfolioService.getAllPortfolios();
+        
+        if (response && response.data) {
+          setPortfolios(response.data);
+        }
+      } catch (err) {
+        console.error('Error fetching portfolios:', err);
+        setError('Failed to load portfolios');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchPortfolios();
+  }, []);
+  
+  // Format currency
   const formatCurrency = (amount, currency) => {
-    return `${currency === 'CAD' ? 'CA$' : 'US$'}${amount.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
+    const currencySymbol = currency === 'CAD' ? 'CA$' : 'US$';
+    return `${currencySymbol}${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
-
-  // Format date function
-  const formatDate = (dateString) => {
-    const options = { year: 'numeric', month: 'short', day: 'numeric' };
-    return new Date(dateString).toLocaleDateString('en-US', options);
+  
+  // Handle portfolio click to show assets
+  const handlePortfolioClick = (portfolio) => {
+    setSelectedPortfolio(portfolio);
   };
-
+  
+  // Close the asset modal
+  const handleCloseModal = () => {
+    setSelectedPortfolio(null);
+  };
+  
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="py-6 px-4 sm:px-6 lg:px-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-6">Portfolios</h1>
+        <div className="bg-white shadow rounded-md p-4">
+          <p className="text-gray-500">Loading portfolios data...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  // Error state
+  if (error) {
+    return (
+      <div className="py-6 px-4 sm:px-6 lg:px-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-6">Portfolios</h1>
+        <div className="bg-red-50 border border-red-200 text-red-800 rounded-md p-4">
+          <p className="font-medium">Error loading portfolios</p>
+          <p className="mt-1">{error}</p>
+          <button 
+            className="mt-2 inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+            onClick={() => window.location.reload()}
+          >
+            Reload
+          </button>
+        </div>
+      </div>
+    );
+  }
+  
+  // Empty state
+  if (portfolios.length === 0) {
+    return (
+      <div className="py-6 px-4 sm:px-6 lg:px-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-6">Portfolios</h1>
+        <div className="bg-white shadow rounded-md p-6 text-center">
+          <p className="text-gray-500">No portfolios found.</p>
+        </div>
+      </div>
+    );
+  }
+  
+  // Calculate summary data
+  const totalPortfolios = portfolios.length;
+  const totalCadAum = portfolios
+    .filter(p => p.portfolioCurrency === 'CAD')
+    .reduce((sum, p) => sum + p.portfolioAum, 0);
+  const totalUsdAum = portfolios
+    .filter(p => p.portfolioCurrency === 'USD')
+    .reduce((sum, p) => sum + p.portfolioAum, 0);
+  const avgPortfolioSize = portfolios.length > 0 
+    ? portfolios.reduce((sum, p) => sum + p.portfolioAum, 0) / portfolios.length 
+    : 0;
+  
+  // Render the portfolios table with summary cards
   return (
     <div className="py-6 px-4 sm:px-6 lg:px-8">
       <div className="sm:flex sm:items-center sm:justify-between mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Portfolios</h1>
-        
-        {/* Search and filter section */}
-        <div className="mt-4 sm:mt-0 flex">
-          <div className="relative rounded-md shadow-sm">
-            <input
-              type="text"
-              placeholder="Search portfolios..."
-              className="focus:ring-indigo-500 focus:border-indigo-500 block w-full pr-10 sm:text-sm border-gray-300 rounded-md"
-            />
-            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-              <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
-          </div>
-          
-          <div className="ml-3">
-            <select className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
-              <option>All Currencies</option>
-              <option>CAD</option>
-              <option>USD</option>
-            </select>
-          </div>
-        </div>
       </div>
       
       {/* Portfolio summary cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         {/* Total Portfolios */}
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-medium text-gray-500">Total Portfolios</h2>
-          <p className="text-3xl font-bold text-gray-900 mt-2">10</p>
+          <p className="text-3xl font-bold text-gray-900 mt-2">{totalPortfolios}</p>
         </div>
         
         {/* Total AUM (CAD) */}
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-medium text-gray-500">Total AUM (CAD)</h2>
-          <p className="text-3xl font-bold text-gray-900 mt-2">CA$46,450,000</p>
+          <p className="text-3xl font-bold text-gray-900 mt-2">{formatCurrency(totalCadAum, 'CAD')}</p>
+        </div>
+        
+        {/* Total AUM (USD) */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-lg font-medium text-gray-500">Total AUM (USD)</h2>
+          <p className="text-3xl font-bold text-gray-900 mt-2">{formatCurrency(totalUsdAum, 'USD')}</p>
         </div>
         
         {/* Average Portfolio Size */}
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-medium text-gray-500">Average Portfolio Size</h2>
-          <p className="text-3xl font-bold text-gray-900 mt-2">CA$4,645,000</p>
+          <p className="text-3xl font-bold text-gray-900 mt-2">{formatCurrency(avgPortfolioSize, 'CAD')}</p>
         </div>
       </div>
       
@@ -83,89 +145,62 @@ export default function Portfolios() {
             <thead className="bg-gray-50">
               <tr>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Portfolio ID</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client ID</th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Currency</th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">AUM</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assets</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created Date</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fee Amount</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fee Rate</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {portfolios.map((portfolio) => (
-                <tr key={portfolio.id} className="hover:bg-gray-50">
+              {portfolios.map((portfolio) => {
+                // Calculate fee rate (avoid division by zero)
+                const feeRate = portfolio.portfolioAum > 0 
+                  ? (portfolio.portfolioFee / portfolio.portfolioAum) * 100 
+                  : 0;
+                
+                return (
+                <tr key={portfolio.portfolioId} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{portfolio.id}</div>
+                    <button 
+                      onClick={() => handlePortfolioClick(portfolio)}
+                      className="text-sm font-medium text-indigo-600 hover:text-indigo-900 hover:underline focus:outline-none"
+                    >
+                      {portfolio.portfolioId}
+                    </button>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{portfolio.clientName}</div>
+                    <div className="text-sm font-medium text-gray-900">{portfolio.clientId}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                      ${portfolio.currency === 'CAD' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>
-                      {portfolio.currency}
+                      ${portfolio.portfolioCurrency === 'CAD' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>
+                      {portfolio.portfolioCurrency}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {formatCurrency(portfolio.aum, portfolio.currency)}
+                    {formatCurrency(portfolio.portfolioAum, portfolio.portfolioCurrency)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {portfolio.assetCount}
+                    {formatCurrency(portfolio.portfolioFee, portfolio.portfolioCurrency)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {formatDate(portfolio.created)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <button className="text-indigo-600 hover:text-indigo-900 mr-3">View</button>
-                    <button className="text-gray-600 hover:text-gray-900">Edit</button>
+                    {feeRate.toFixed(2)}%
                   </td>
                 </tr>
-              ))}
+              )})}
             </tbody>
           </table>
         </div>
-        
-        {/* Pagination */}
-        <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
-          <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm text-gray-700">
-                Showing <span className="font-medium">1</span> to <span className="font-medium">10</span> of{' '}
-                <span className="font-medium">10</span> results
-              </p>
-            </div>
-            <div>
-              <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                <a
-                  href="#"
-                  className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
-                >
-                  <span className="sr-only">Previous</span>
-                  <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                    <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                </a>
-                <a
-                  href="#"
-                  aria-current="page"
-                  className="z-10 bg-indigo-50 border-indigo-500 text-indigo-600 relative inline-flex items-center px-4 py-2 border text-sm font-medium"
-                >
-                  1
-                </a>
-                <a
-                  href="#"
-                  className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
-                >
-                  <span className="sr-only">Next</span>
-                  <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                    <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                  </svg>
-                </a>
-              </nav>
-            </div>
-          </div>
-        </div>
       </div>
+      
+      {/* Asset Modal - only shown when a portfolio is selected */}
+      {selectedPortfolio && (
+        <AssetModal 
+          portfolio={selectedPortfolio}
+          onClose={handleCloseModal}
+        />
+      )}
     </div>
   );
 }

@@ -3,9 +3,6 @@
 // Base API URL
 const API_BASE_URL = 'http://localhost:8080/api/v1';
 
-// Set your JWT token here
-const AUTH_TOKEN = 'eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjEsImlhdCI6MTc0MDY1ODU3NSwiZXhwIjoxNzQwNzQ0OTc1fQ.AcAgzr7KsvRSv72BiKuFFaRy7s3ig2a9vHlJff6wK4vhwBHgfzv7X2qhtlUZCWlU'; 
-
 /**
  * Simple fetch wrapper for API calls
  * @param {string} endpoint - API endpoint to call
@@ -15,10 +12,18 @@ const AUTH_TOKEN = 'eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjEsImlhdCI6MTc0MDY1ODU3NSw
 export const fetchApi = async (endpoint, options = {}) => {
   const url = `${API_BASE_URL}${endpoint}`;
   
+  // Get auth token from local storage
+  const authToken = localStorage.getItem('auth_token');
+  const authType = localStorage.getItem('auth_type') || 'Bearer';
+  
   const defaultHeaders = {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${AUTH_TOKEN}`
+    'Content-Type': 'application/json'
   };
+  
+  // Add auth header if token exists
+  if (authToken) {
+    defaultHeaders['Authorization'] = `${authType} ${authToken}`;
+  }
   
   const fetchOptions = {
     ...options,
@@ -31,13 +36,10 @@ export const fetchApi = async (endpoint, options = {}) => {
   try {
     const response = await fetch(url, fetchOptions);
     
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
-    }
-    
     const contentType = response.headers.get('content-type');
     if (contentType && contentType.includes('application/json')) {
-      return await response.json();
+      const jsonResponse = await response.json();
+      return jsonResponse;
     }
     
     return await response.text();
@@ -90,8 +92,14 @@ export default {
       
       xhr.open('POST', url, true);
       
-      // Add authorization header
-      xhr.setRequestHeader('Authorization', `Bearer ${AUTH_TOKEN}`);
+      // Get auth token from local storage
+      const authToken = localStorage.getItem('auth_token');
+      const authType = localStorage.getItem('auth_type') || 'Bearer';
+      
+      // Add authorization header if token exists
+      if (authToken) {
+        xhr.setRequestHeader('Authorization', `${authType} ${authToken}`);
+      }
       
       xhr.onload = function() {
         if (xhr.status >= 200 && xhr.status < 300) {
