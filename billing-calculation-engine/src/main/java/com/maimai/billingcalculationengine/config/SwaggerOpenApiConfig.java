@@ -8,8 +8,8 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @OpenAPIDefinition(
         info = @Info(
-                title = "title name",
-                description = "base description",
+                title = "Billing Calculation Engine",
+                description = "Interactive API for Billing Calculation Engine",
                 version = "1.0.0",
                 contact = @Contact(
                         name = "Mai Zhang",

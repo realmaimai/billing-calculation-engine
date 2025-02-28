@@ -26,6 +26,8 @@ spring:
     multipart:
       max-file-size: 10MB
       max-request-size: 10MB
+  main:
+    allow-circular-references: true
 
 # single source of truth of data below!!!
 # related to common -> properties
@@ -39,7 +41,7 @@ app:
   #  -> CurrencyProperties
   # add more currency ratio in here
   currency:
-    toUSD: 1.43
+    toUSD: 0.71
 
 springdoc:
   swagger-ui:

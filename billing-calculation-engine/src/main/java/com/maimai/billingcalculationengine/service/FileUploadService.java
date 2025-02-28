@@ -10,10 +10,12 @@ import jakarta.annotation.Resource;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.catalina.core.ApplicationContext;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -42,6 +44,8 @@ public class FileUploadService {
     @Resource
     private BillingTierRepository billingTierRepository;
 
+    @Autowired
+    private FileUploadService self;
 
     private static final Map<String, List<String>> EXPECTED_SHEETS_AND_COLUMNS = new HashMap<>();
 
@@ -83,63 +87,66 @@ public class FileUploadService {
         if (latestUploadDateWhereStatusCompleted.isPresent()) {
             return latestUploadDateWhereStatusCompleted.get().toLocalDate();
         }
-        
+
         return null;
     }
 
-
-    @Transactional(rollbackFor = Exception.class)
+    /**
+     * Public method to handle file uploads and track errors
+     * This method is non-transactional to ensure the upload record is always saved
+     * @param file The Excel file to process
+     * @return The FileUploadRecord with the processing status
+     */
     public FileUploadRecord upload(MultipartFile file) {
         String originalFilename = file.getOriginalFilename();
         log.info("Processing upload file: {}", originalFilename);
 
-        // create upload record
+        // create upload record - this will always be saved
         FileUploadRecord uploadRecord = FileUploadRecord.builder()
                 .fileName(originalFilename)
                 .fileType(file.getContentType())
                 .fileSize(file.getSize())
                 .uploadDate(LocalDateTime.now())
-                .createdBy(String.valueOf(JwtUtil.getCurrentUserId())) // get user id from base context
-                .status("PROCESSING") //
+                .createdBy(String.valueOf(JwtUtil.getCurrentUserId()))
+                .status("PROCESSING")
                 .build();
         FileUploadRecord savedRecord = fileUploadRepository.save(uploadRecord);
         log.info("Saved record, id: {}", savedRecord.getUploadId());
 
-        // start processing file
         try {
-            Map<String, Object> processingResult = processExcelFile(file);
-            log.info("Processing result errors: {}", processingResult.get("errors"));
-            List<ValidationError> errors = (List<ValidationError>) processingResult.get("errors");
+            // the transactional method to process the file
+            String resultSummary = self.uploadTransactional(file, savedRecord);
 
-            // check for validation errors and provide detailed error report
-            if (!errors.isEmpty()) {
-                // if there are validation errors, roll back and return error details
-                StringBuilder errorMessage = new StringBuilder("Validation errors found:\n");
-                for (ValidationError error : errors) {
-                    errorMessage.append(String.format("Sheet: %s, Row: %d,  Error: %s\n",
-                            error.getSheetName(), error.getRowNum(), error.getErrorMessage()));
-                }
-
-                savedRecord.setStatus("FAILED");
-                savedRecord.setProcessingResult(errorMessage.toString());
-                return fileUploadRepository.save(savedRecord);
-            }
-
-            // if successful, return success message with processing stats
-            String resultSummary = (String) processingResult.get("summary");
             savedRecord.setStatus("COMPLETED");
             savedRecord.setProcessingResult(resultSummary);
             return fileUploadRepository.save(savedRecord);
         } catch (Exception e) {
             log.error("Error processing file: {}", e.getMessage(), e);
-            // if failed
             savedRecord.setStatus("FAILED");
             savedRecord.setProcessingResult("Error: " + e.getMessage());
             return fileUploadRepository.save(savedRecord);
         }
     }
 
-    protected Map<String, Object> processExcelFile(MultipartFile file) throws IOException {
+    /**
+     * This is the actual transactional method that will be rolled back on exceptions
+     * @param file The Excel file to process
+     * @param uploadRecord The record tracking this upload
+     * @return The processing result summary
+     * @throws Exception If any validation or processing error occurs
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public String uploadTransactional(MultipartFile file, FileUploadRecord uploadRecord) throws Exception {
+        log.info("Starting transactional processing for file: {}", uploadRecord.getFileName());
+
+        // order for processing sheets
+        List<String> processingOrder = Arrays.asList(
+                "billing_tier",   // First process billing tiers
+                "client_billing", // Then clients
+                "portfolio",      // Then portfolios
+                "assets"          // Finally assets
+        );
+
         Workbook workbook;
         try {
             workbook = new XSSFWorkbook(file.getInputStream());
@@ -148,13 +155,11 @@ public class FileUploadService {
         }
 
         Map<String, Integer> processingStats = new HashMap<>();
-        // upload result description
         StringBuilder resultSummary = new StringBuilder();
-        // errors for this file
         List<ValidationError> validationErrors = new ArrayList<>();
 
-        // process each sheet
-        for (String sheetName : EXPECTED_SHEETS_AND_COLUMNS.keySet()) {
+        // process sheets in the specified order
+        for (String sheetName : processingOrder) {
             Sheet sheet = workbook.getSheet(sheetName);
             if (sheet == null) {
                 log.warn("Sheet {} not found", sheetName);
@@ -171,19 +176,34 @@ public class FileUploadService {
             validationErrors.addAll(sheetErrors);
             processingStats.put(sheetName, rowProcessed);
             resultSummary.append("Processed ").append(rowProcessed)
-                    .append(" rows from '").append(sheetName).append("'. ");
+                    .append(" rows from '").append(sheetName).append("'. \n");
         }
 
-        log.info("Finish processing sheet, sheets amount: {}", processingStats.size());
-        resultSummary.append("Finish processing sheet, sheets amount: %d").append(processingStats.size());
+        resultSummary.append("Finished processing sheets, total sheets: ").append(processingStats.size());
 
         workbook.close();
 
-        // return both the summary and collected validation errors
-        Map<String, Object> result = new HashMap<>();
-        result.put("summary", resultSummary.toString());
-        result.put("errors", validationErrors);
-        return result;
+        // if there are errors, throw an exception to trigger rollback
+        if (!validationErrors.isEmpty()) {
+            StringBuilder errorMessageBuilder = new StringBuilder("Validation errors found:\n");
+            for (ValidationError error : validationErrors) {
+                errorMessageBuilder.append(String.format("Sheet: %s, Row: %d, Error: %s\n",
+                        error.getSheetName(), error.getRowNum(), error.getErrorMessage()));
+            }
+
+            String errorMessage;
+            if (errorMessageBuilder.length() >= 2000) {
+                errorMessage = errorMessageBuilder.substring(0, 2000);
+            } else {
+                errorMessage = errorMessageBuilder.toString();
+            }
+
+            // trigger transaction rollback
+            throw new InvalidDataException(errorMessage);
+        }
+
+        // return the summary of processing results
+        return resultSummary.toString();
     }
 
     protected Map<String, Object> processSheet(Sheet sheet) {
@@ -234,10 +254,10 @@ public class FileUploadService {
                 String errorMsg = e.getMessage();
 
                 // track each validation error with row and column details
-                validationErrors.add(new ValidationError(sheetName, i, errorMsg));
-                log.error("Validation error in row {} of sheet {}: {}", i, sheetName, errorMsg);
+                validationErrors.add(new ValidationError(sheetName, i+1, errorMsg));
+                log.error("Validation error in row {} of sheet {}: {}", i+1, sheetName, errorMsg);
             } catch (Exception e) {
-                log.error("Error processing row {} in sheet {}: {}", i, sheetName, e.getMessage(), e);
+                log.error("Error processing row {} in sheet {}: {}", i+1, sheetName, e.getMessage(), e);
             }
         }
 
@@ -261,6 +281,9 @@ public class FileUploadService {
 
         // sheet selection
         switch (sheetEnum) {
+            case BILLING_TIER:
+                processBillingTierRow(dataRow, columnIndexMap);
+                break;
             case CLIENT_BILLING:
                 processClientRow(dataRow, columnIndexMap);
                 break;
@@ -269,9 +292,6 @@ public class FileUploadService {
                 break;
             case ASSETS:
                 processAssetRow(dataRow, columnIndexMap);
-                break;
-            case BILLING_TIER:
-                processBillingTierRow(dataRow, columnIndexMap);
                 break;
         }
     }
@@ -459,7 +479,7 @@ public class FileUploadService {
         }
 
 
-        BigDecimal assetValue = FileUtil.getCellValueAsBigDecimal(row, columnIndexMap.get("asset_value"));
+        BigDecimal assetValue = FileUtil.getCellValueAsBigDecimal(row, columnIndexMap.get("asset value"));
         if (assetValue == null || assetValue.compareTo(BigDecimal.ZERO) < 0) throw new InvalidDataException("Asset Value must be a positive number");
 
         String currency = FileUtil.getCellValueAsString(row, columnIndexMap.get("currency"));
@@ -497,7 +517,7 @@ public class FileUploadService {
             asset = Asset.builder()
                     .assetId(assetId)
                     .portfolioId(portfolioId)
-                    .date(date)  // Important: set the date for the composite key
+                    .date(date)
                     .assetValue(assetValue)
                     .currency(currency)
                     .createdAt(LocalDateTime.now())
@@ -510,5 +530,4 @@ public class FileUploadService {
         assetRepository.save(asset);
         log.debug("Saved asset: {} for portfolio: {} on date: {}", assetId, portfolioId, date);
     }
-
 }

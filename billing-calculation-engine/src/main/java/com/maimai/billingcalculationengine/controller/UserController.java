@@ -28,22 +28,6 @@ public class UserController {
     @Resource
     private UserService userService;
 
-    @Operation(
-            summary = "User login",
-            description = "Authenticates user credentials and returns login information with JWT token"
-    )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Successfully logged in",
-                    content = @Content(schema = @Schema(implementation = UserLoginResponse.class))
-            ),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "Invalid credentials",
-                    content = @Content
-            )
-    })
     @TrackExecution(Layer.CONTROLLER)
     @PostMapping("/login")
     public Result<UserLoginResponse> login(@Valid @RequestBody UserLoginDTO userLoginDTO) {
@@ -51,22 +35,6 @@ public class UserController {
         return Result.success(loginUser, MessageConstants.Auth.LOGIN_SUCCESS);
     }
 
-    @Operation(
-            summary = "User registration",
-            description = "Registers a new user account with the provided information"
-    )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Account successfully created",
-                    content = @Content(schema = @Schema(implementation = Result.class))
-            ),
-            @ApiResponse(
-                    responseCode = "400",
-                    description = "Invalid registration data",
-                    content = @Content
-            )
-    })
     @PostMapping("/register")
     public Result<String> register(@Valid @RequestBody UserRegisterDTO userRegisterDTO) {
         userService.register(userRegisterDTO);

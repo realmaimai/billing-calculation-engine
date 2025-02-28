@@ -10,7 +10,6 @@ logging:
   level:
     root: INFO
     com.maimai: DEBUG
-    org.springframework.security: INFO
   file:
     name: logs/application.log
   logback:

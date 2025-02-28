@@ -1,7 +1,10 @@
 package com.maimai.billingcalculationengine.service;
 
-import com.maimai.billingcalculationengine.model.dto.ClientFeeDTO;
-import com.maimai.billingcalculationengine.model.entity.*;
+import com.maimai.billingcalculationengine.common.properties.CurrencyProperties;
+import com.maimai.billingcalculationengine.model.entity.Asset;
+import com.maimai.billingcalculationengine.model.entity.BillingTier;
+import com.maimai.billingcalculationengine.model.entity.Client;
+import com.maimai.billingcalculationengine.model.entity.Portfolio;
 import com.maimai.billingcalculationengine.repository.AssetRepository;
 import com.maimai.billingcalculationengine.repository.BillingTierRepository;
 import com.maimai.billingcalculationengine.repository.ClientRepository;
@@ -16,191 +19,133 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-public class FeeCalculationServiceTest {
-
-    @Mock
-    private ClientRepository clientRepository;
-
-    @Mock
-    private PortfolioRepository portfolioRepository;
+public class CalculationServiceTest {
 
     @Mock
     private AssetRepository assetRepository;
 
     @Mock
+    private ClientRepository clientRepository;
+
+    @Mock
     private BillingTierRepository billingTierRepository;
 
-    @InjectMocks
-    private FeeCalculationService feeCalculationService;
+    @Mock
+    private CurrencyProperties currencyProperties;
 
-    private Client testClient;
-    private Portfolio testPortfolio;
-    private Asset testAsset;
-    private BillingTier testBillingTier;
-    private LocalDate testDate;
+    @InjectMocks
+    private CalculationService calculationService;
+
+    private Portfolio cadPortfolio;
+    private Portfolio usdPortfolio;
+    private Client client;
+    private BillingTier billingTier;
+    private List<Asset> assets;
 
     @BeforeEach
-    public void setup() {
-        testDate = LocalDate.of(2024, 12, 31);
+    void setUp() {
+        // Setup test data
+        cadPortfolio = Portfolio.builder()
+                .portfolioId("P001")
+                .clientId("C001")
+                .portfolioCurrency("CAD")
+                .build();
 
-        // Setup test client
-        testClient = Client.builder()
+        usdPortfolio = Portfolio.builder()
+                .portfolioId("P002")
+                .clientId("C001")
+                .portfolioCurrency("USD")
+                .build();
+
+        client = Client.builder()
                 .clientId("C001")
                 .clientName("Test Client")
-                .province("Ontario")
-                .country("Canada")
-                .billingTierId("T1")
+                .billingTierId("T001")
                 .build();
 
-        // Setup test portfolio
-        testPortfolio = Portfolio.builder()
-                .portfolioId("P001")
-                .clientId("C001")
-                .portfolioCurrency("CAD")
-                .build();
-
-        // Setup test asset
-        testAsset = Asset.builder()
-                .assetId("A001")
-                .portfolioId("P001")
-                .date(testDate)
-                .assetValue(new BigDecimal("100000.00"))
-                .currency("CAD")
-                .build();
-
-        // Setup test billing tier
-        testBillingTier = BillingTier.builder()
-                .tierId("T1")
+        billingTier = BillingTier.builder()
+                .tierId("T001")
                 .portfolioAumMin(new BigDecimal("0.00"))
-                .portfolioAumMax(new BigDecimal("500000.00"))
-                .feePercentage(new BigDecimal("1.50"))
-                .build();
-    }
-
-    @Test
-    public void testCalculateFeesForAllClients() {
-        // Setup
-        List<Client> clients = Collections.singletonList(testClient);
-        when(clientRepository.findAll()).thenReturn(clients);
-        when(portfolioRepository.findAllByClientId("C001")).thenReturn(Collections.singletonList(testPortfolio));
-
-        AssetKey assetKey = new AssetKey(testDate, "P001", "A001");
-        when(assetRepository.findAllByPortfolioIdAndDate("P001", testDate)).thenReturn(Collections.singletonList(testAsset));
-
-        BillingTierKey billingTierKey = new BillingTierKey("T1", new BigDecimal("0.00"), new BigDecimal("500000.00"));
-        when(billingTierRepository.findByTierId("T1")).thenReturn(Collections.singletonList(testBillingTier));
-
-        // Execute
-        List<ClientFeeDTO> results = feeCalculationService.calculateFeesForAllClients(testDate);
-
-        // Verify
-        assertNotNull(results);
-        assertEquals(1, results.size());
-        ClientFeeDTO clientFee = results.get(0);
-        assertEquals("C001", clientFee.getClientId());
-        assertEquals("Test Client", clientFee.getClientName());
-        assertEquals(new BigDecimal("100000.00"), clientFee.getTotalAumCad());
-        // Fee should be 1.5% of 100000 = 1500
-        assertEquals(new BigDecimal("1500.00").setScale(2), clientFee.getFeeAmountCad().setScale(2));
-        assertEquals(new BigDecimal("1.50"), clientFee.getEffectiveFeeRate());
-    }
-
-    @Test
-    public void testCalculateFeeWithCurrencyConversion() {
-        // Setup
-        // Change asset currency to USD
-        Asset usdAsset = Asset.builder()
-                .assetId("A002")
-                .portfolioId("P001")
-                .date(testDate)
-                .assetValue(new BigDecimal("100000.00"))
-                .currency("USD")  // USD asset
-                .build();
-
-        List<Client> clients = Collections.singletonList(testClient);
-        when(clientRepository.findAll()).thenReturn(clients);
-        when(portfolioRepository.findAllByClientId("C001")).thenReturn(Collections.singletonList(testPortfolio));
-        when(assetRepository.findAllByPortfolioIdAndDate("P001", testDate)).thenReturn(Collections.singletonList(usdAsset));
-        when(billingTierRepository.findByTierId("T1")).thenReturn(Collections.singletonList(testBillingTier));
-
-        // Execute
-        List<ClientFeeDTO> results = feeCalculationService.calculateFeesForAllClients(testDate);
-
-        // Verify
-        assertNotNull(results);
-        assertEquals(1, results.size());
-        ClientFeeDTO clientFee = results.get(0);
-
-        // USD 100,000 converted to CAD at 1 USD = 1.4085 CAD (1/0.71) should be approx CAD 140,845
-        BigDecimal expectedAumCad = new BigDecimal("140845.07");
-        assertEquals(expectedAumCad.setScale(2), clientFee.getTotalAumCad().setScale(2));
-
-        // Fee should be 1.5% of 140,845.07 = 2,112.68
-        BigDecimal expectedFee = new BigDecimal("2112.68");
-        assertEquals(expectedFee.setScale(2), clientFee.getFeeAmountCad().setScale(2));
-    }
-
-    @Test
-    public void testCalculateFeeForClientWithMultiplePortfolios() {
-        // Setup
-        // Create second portfolio for same client
-        Portfolio testPortfolio2 = Portfolio.builder()
-                .portfolioId("P002")
-                .clientId("C001")
-                .portfolioCurrency("CAD")
-                .build();
-
-        // Create second asset for second portfolio
-        Asset testAsset2 = Asset.builder()
-                .assetId("A002")
-                .portfolioId("P002")
-                .date(testDate)
-                .assetValue(new BigDecimal("200000.00"))
-                .currency("CAD")
-                .build();
-
-        List<Client> clients = Collections.singletonList(testClient);
-        when(clientRepository.findAll()).thenReturn(clients);
-        when(portfolioRepository.findAllByClientId("C001")).thenReturn(Arrays.asList(testPortfolio, testPortfolio2));
-
-        when(assetRepository.findAllByPortfolioIdAndDate("P001", testDate)).thenReturn(Collections.singletonList(testAsset));
-        when(assetRepository.findAllByPortfolioIdAndDate("P002", testDate)).thenReturn(Collections.singletonList(testAsset2));
-
-        // Second tier for the higher portfolio value
-        BillingTier testBillingTier2 = BillingTier.builder()
-                .tierId("T1")
-                .portfolioAumMin(new BigDecimal("100001.00"))
                 .portfolioAumMax(new BigDecimal("1000000.00"))
-                .feePercentage(new BigDecimal("1.25"))  // Lower fee for higher portfolio value
+                .feePercentage(new BigDecimal("1.25"))
                 .build();
 
-        when(billingTierRepository.findByTierId("T1")).thenReturn(Arrays.asList(testBillingTier, testBillingTier2));
+        assets = Arrays.asList(
+                Asset.builder()
+                        .portfolioId("P001")
+                        .assetId("A001")
+                        .assetValue(new BigDecimal("10000.00"))
+                        .currency("CAD")
+                        .date(LocalDate.now())
+                        .build(),
+                Asset.builder()
+                        .portfolioId("P001")
+                        .assetId("A002")
+                        .assetValue(new BigDecimal("15000.00"))
+                        .currency("CAD")
+                        .date(LocalDate.now())
+                        .build()
+        );
 
-        // Execute
-        List<ClientFeeDTO> results = feeCalculationService.calculateFeesForAllClients(testDate);
+    }
 
-        // Verify
-        assertNotNull(results);
-        assertEquals(1, results.size());
-        ClientFeeDTO clientFee = results.get(0);
+    @Test
+    void testCalculatePortfolioAum_CADPortfolio() {
+        // Arrange
+        when(assetRepository.findAllByPortfolioId("P001")).thenReturn(assets);
 
-        // Total AUM should be 100,000 + 200,000 = 300,000
-        assertEquals(new BigDecimal("300000.00"), clientFee.getTotalAumCad());
+        // Act
+        BigDecimal result = calculationService.calculatePortfolioAum(cadPortfolio);
 
-        // P001: 100,000 at 1.5% = 1,500
-        // P002: 200,000 at 1.25% = 2,500
-        // Total fee: 4,000
-        assertEquals(new BigDecimal("4000.00").setScale(2), clientFee.getFeeAmountCad().setScale(2));
+        // Assert
+        BigDecimal expected = new BigDecimal("25000.00");
+        assertEquals(0, expected.compareTo(result), "Portfolio AUM should be the sum of all asset values for CAD portfolio");
+    }
 
-        // Effective rate: 4,000 / 300,000 = 1.33%
-        assertEquals(new BigDecimal("1.33").setScale(2), clientFee.getEffectiveFeeRate().setScale(2));
+   @Test
+    void testCalculatePortfolioFee() {
+        // Arrange
+        BigDecimal portfolioAum = new BigDecimal("50000.00");
+        when(clientRepository.findByClientId("C001")).thenReturn(Optional.of(client));
+        when(billingTierRepository.findByTierIdAndBalance("T001", portfolioAum)).thenReturn(Optional.of(billingTier));
+
+        // Act
+        BigDecimal result = calculationService.calculatePortfolioFee(portfolioAum, cadPortfolio);
+
+        // Assert
+        BigDecimal expected = new BigDecimal("625.00"); // 50000 * 0.0125 = 625
+        assertEquals(0, expected.compareTo(result), "Portfolio fee should be calculated based on AUM and fee percentage");
+    }
+
+    @Test
+    void testConvertFromCadToTargetCurrency_CAD() {
+        // Arrange
+        BigDecimal amount = new BigDecimal("1000.00");
+
+        // Act
+        BigDecimal result = calculationService.convertFromCadToTargetCurrency(amount, "CAD");
+
+        // Assert
+        assertEquals(0, amount.compareTo(result), "When target currency is CAD, no conversion should happen");
+    }
+
+    @Test
+    void testConvertFromCadToTargetCurrency_USD() {
+        // Arrange
+        BigDecimal amount = new BigDecimal("1000.00");
+
+        // Act
+        BigDecimal result = calculationService.convertFromCadToTargetCurrency(amount, "USD");
+
+        // Assert
+        BigDecimal expected = new BigDecimal("710.00"); // 1000 * 0.71 = 710
+        assertEquals(0, expected.compareTo(result), "CAD amount should be correctly converted to USD");
     }
 }

@@ -1,7 +1,9 @@
 package com.maimai.billingcalculationengine.common.utils;
 
+import com.maimai.billingcalculationengine.common.exception.InvalidDataException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.DateUtil;
 import org.apache.poi.ss.usermodel.Row;
 import org.springframework.stereotype.Component;
@@ -27,20 +29,10 @@ public class FileUtil {
                     return cell.getLocalDateTimeCellValue().toString();
                 }
                 return String.valueOf((long) cell.getNumericCellValue());
-            case BOOLEAN:
-                return String.valueOf(cell.getBooleanCellValue());
-            case FORMULA:
-                try {
-                    return cell.getStringCellValue();
-                } catch (Exception e) {
-                    try {
-                        return String.valueOf(cell.getNumericCellValue());
-                    } catch (Exception ex) {
-                        return "";
-                    }
-                }
+            case BLANK:
+                throw new InvalidDataException("this row has a blank value");
             default:
-                return "";
+                throw new InvalidDataException("This row has a value must be string");
         }
     }
 
@@ -50,24 +42,19 @@ public class FileUtil {
         Cell cell = row.getCell(columnIndex);
         if (cell == null) return BigDecimal.ZERO;
 
-        switch (cell.getCellType()) {
-            case NUMERIC:
-                return BigDecimal.valueOf(cell.getNumericCellValue());
-            case STRING:
-                try {
-                    return new BigDecimal(cell.getStringCellValue().trim().replaceAll("[^\\d.]", ""));
-                } catch (NumberFormatException e) {
-                    return BigDecimal.ZERO;
-                }
-            case FORMULA:
-                try {
-                    return BigDecimal.valueOf(cell.getNumericCellValue());
-                } catch (Exception e) {
-                    return BigDecimal.ZERO;
-                }
-            default:
-                return BigDecimal.ZERO;
+        if (Objects.requireNonNull(cell.getCellType()) == CellType.NUMERIC) {
+            double numericValue = cell.getNumericCellValue();
+            // check if the cell is formatted as a percentage
+            if (cell.getCellStyle().getDataFormat() == 10 ||
+                    cell.getCellStyle().getDataFormatString().contains("%")) {
+                // multiply 100 to get the actual percentage value
+                numericValue *= 100;
+            }
+            return BigDecimal.valueOf(numericValue);
+        } else if (cell.getCellType() == CellType.BLANK) {
+            throw new InvalidDataException("This row has a blank value");
         }
+        throw new InvalidDataException("This row has a value must be number");
     }
 
     public static LocalDate getCellValueAsDate(Row row, Integer columnIndex) {
@@ -90,8 +77,11 @@ public class FileUtil {
                 } catch (Exception e) {
                     return null;
                 }
+            case BLANK:
+                throw new InvalidDataException("this row has a blank value");
             default:
-                return null;
+                throw new InvalidDataException("This row has a value must be date format");
+
         }
     }
 

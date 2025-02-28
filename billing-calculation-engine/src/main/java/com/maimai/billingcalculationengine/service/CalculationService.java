@@ -64,17 +64,13 @@ public class CalculationService {
         for (Asset asset : assetsByPortfolioId) {
             log.info("Processing asset: id={}, currency={}, value={}",
                     asset.getAssetId(), asset.getCurrency(), asset.getAssetValue());
-
-            // TODO: use strategic pattern + simple factory
-            BigDecimal assetValue = asset.getAssetValue();
-            log.debug("Original asset value: {} {}", assetValue, asset.getCurrency());
-
-            BigDecimal convertedAssetValue = convertFromCadToTargetCurrency(assetValue, portfolioCurrency);
-            log.debug("Converted asset value: {} {} (conversion from {} to {})",
-                    convertedAssetValue, portfolioCurrency, asset.getCurrency(), portfolioCurrency);
-
-            portfolioBalance = portfolioBalance.add(convertedAssetValue);
+            portfolioBalance = portfolioBalance.add(asset.getAssetValue());
         }
+
+        // TODO: use strategic pattern + simple factory
+        BigDecimal convertedPortfolioBalance = convertFromCadToTargetCurrency(portfolioBalance, portfolioCurrency);
+        log.debug("Converted asset value: {} {} (conversion from {} to {})",
+                convertedPortfolioBalance, portfolioCurrency, portfolio.getPortfolioCurrency(), portfolioCurrency);
 
         log.info("Final calculated portfolio balance: {}", portfolioBalance);
         return portfolioBalance;

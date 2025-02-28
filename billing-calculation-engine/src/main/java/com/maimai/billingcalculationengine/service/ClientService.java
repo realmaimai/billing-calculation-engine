@@ -35,7 +35,7 @@ public class ClientService {
      */
     @TrackExecution(Layer.SERVICE)
     public List<ClientResponse> getAllClients() {
-        List<Client> clients = clientRepository.findAll();
+        List<Client> clients = clientRepository.findAllByOrderByClientIdAsc();
         List<ClientResponse> clientResponses = clients.stream()
                 .map(this::convertToResponse)
                 .collect(Collectors.toList());
