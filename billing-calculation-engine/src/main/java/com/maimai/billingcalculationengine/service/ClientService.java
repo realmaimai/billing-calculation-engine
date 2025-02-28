@@ -43,6 +43,24 @@ public class ClientService {
         return clientResponses;
     }
 
+    public Integer getTotalNumberOfClients() {
+        return (int) clientRepository.count();
+    }
+
+    public BigDecimal getTotalAumOfClient() {
+        List<Client> allClients = clientRepository.findAll();
+        return allClients.stream()
+                .map(client -> calculationService.calculateClientTotalAum(client.getClientId()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    public BigDecimal getTotalFeeOfClient() {
+        List<Client> allClients = clientRepository.findAll();
+        return allClients.stream()
+                .map(client -> calculationService.calculateClientTotalFee(client.getClientId()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
     /**
      * Converts a Client entity to a ClientResponse DTO with calculated fee information.
      *

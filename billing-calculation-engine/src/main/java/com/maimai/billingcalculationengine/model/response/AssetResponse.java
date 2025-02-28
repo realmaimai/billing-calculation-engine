@@ -17,7 +17,6 @@ import java.time.LocalDate;
 @IdClass(AssetKey.class)
 public class AssetResponse {
     private LocalDate date;
-    private String portfolioId;
     private String assetId;
     private BigDecimal assetValue;
     private String currency;

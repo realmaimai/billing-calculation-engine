@@ -67,7 +67,7 @@ public class UserController {
                     content = @Content
             )
     })
-    @PostMapping("/signup")
+    @PostMapping("/register")
     public Result<String> register(@Valid @RequestBody UserRegisterDTO userRegisterDTO) {
         userService.register(userRegisterDTO);
         return Result.successWithoutData(MessageConstants.User.ACCOUNT_CREATED);

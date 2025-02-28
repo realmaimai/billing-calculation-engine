@@ -1,9 +1,9 @@
 package com.maimai.billingcalculationengine.service;
 
-import com.maimai.billingcalculationengine.common.BaseContext;
 import com.maimai.billingcalculationengine.common.enums.SheetName;
 import com.maimai.billingcalculationengine.common.exception.*;
 import com.maimai.billingcalculationengine.common.utils.FileUtil;
+import com.maimai.billingcalculationengine.common.utils.JwtUtil;
 import com.maimai.billingcalculationengine.model.entity.*;
 import com.maimai.billingcalculationengine.repository.*;
 import jakarta.annotation.Resource;
@@ -42,9 +42,8 @@ public class FileUploadService {
     @Resource
     private BillingTierRepository billingTierRepository;
 
-    private static final Map<String, List<String>> EXPECTED_SHEETS_AND_COLUMNS = new HashMap<>();
 
-    private static final Long currentUserId = BaseContext.getCurrentId();
+    private static final Map<String, List<String>> EXPECTED_SHEETS_AND_COLUMNS = new HashMap<>();
 
     // a validationError class to track information about each error
     // it only used in this class so no need to create in other place
@@ -79,6 +78,15 @@ public class FileUploadService {
         return fileUploadRepository.findAll();
     }
 
+    public LocalDate getLastUploadDateWithCompleted() {
+        Optional<LocalDateTime> latestUploadDateWhereStatusCompleted = fileUploadRepository.findLatestUploadDateWhereStatusCompleted();
+        if (latestUploadDateWhereStatusCompleted.isPresent()) {
+            return latestUploadDateWhereStatusCompleted.get().toLocalDate();
+        }
+        
+        return null;
+    }
+
 
     @Transactional(rollbackFor = Exception.class)
     public FileUploadRecord upload(MultipartFile file) {
@@ -91,7 +99,7 @@ public class FileUploadService {
                 .fileType(file.getContentType())
                 .fileSize(file.getSize())
                 .uploadDate(LocalDateTime.now())
-                .createdBy(String.valueOf(currentUserId)) // get user id from base context
+                .createdBy(String.valueOf(JwtUtil.getCurrentUserId())) // get user id from base context
                 .status("PROCESSING") //
                 .build();
         FileUploadRecord savedRecord = fileUploadRepository.save(uploadRecord);
@@ -295,7 +303,7 @@ public class FileUploadService {
             client.setCountry(country);
             client.setBillingTierId(billingTierId);
             client.setUpdatedAt(LocalDateTime.now());
-            client.setUpdatedBy(String.valueOf(currentUserId));
+            client.setUpdatedBy(String.valueOf(JwtUtil.getCurrentUserId()));
             log.debug("Updating existing client: {}", clientId);
         } else {
             // create new client
@@ -306,7 +314,7 @@ public class FileUploadService {
                     .country(country)
                     .billingTierId(billingTierId)
                     .createdAt(LocalDateTime.now())
-                    .createdBy(String.valueOf(currentUserId))
+                    .createdBy(String.valueOf(JwtUtil.getCurrentUserId()))
                     .build();
             log.debug("Creating new client: {}", clientId);
         }
@@ -349,7 +357,7 @@ public class FileUploadService {
             portfolio.setClientId(clientId);
             portfolio.setPortfolioCurrency(portfolioCurrency);
             portfolio.setUpdatedAt(LocalDateTime.now());
-            portfolio.setUpdatedBy(String.valueOf(currentUserId));
+            portfolio.setUpdatedBy(String.valueOf(JwtUtil.getCurrentUserId()));
             log.debug("Updating existing portfolio: {}", portfolioId);
         } else {
             // create new portfolio
@@ -358,7 +366,7 @@ public class FileUploadService {
                     .clientId(clientId)
                     .portfolioCurrency(portfolioCurrency)
                     .createdAt(LocalDateTime.now())
-                    .createdBy(String.valueOf(currentUserId))
+                    .createdBy(String.valueOf(JwtUtil.getCurrentUserId()))
                     .build();
             log.debug("Creating new portfolio: {}", portfolioId);
         }
@@ -481,7 +489,7 @@ public class FileUploadService {
             asset.setAssetValue(assetValue);
             asset.setCurrency(currency);
             asset.setUpdatedAt(LocalDateTime.now());
-            asset.setUpdatedBy(String.valueOf(currentUserId));
+            asset.setUpdatedBy(String.valueOf(JwtUtil.getCurrentUserId()));
             log.debug("Updating existing asset: {} for portfolio: {} on date: {}",
                     assetId, portfolioId, date);
         } else {
@@ -493,7 +501,7 @@ public class FileUploadService {
                     .assetValue(assetValue)
                     .currency(currency)
                     .createdAt(LocalDateTime.now())
-                    .createdBy(String.valueOf(currentUserId))
+                    .createdBy(String.valueOf(JwtUtil.getCurrentUserId()))
                     .build();
             log.debug("Creating new asset: {} for portfolio: {} on date: {}",
                     assetId, portfolioId, date);

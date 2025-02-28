@@ -2,6 +2,7 @@ package com.maimai.billingcalculationengine.controller;
 
 import com.maimai.billingcalculationengine.common.result.Result;
 import com.maimai.billingcalculationengine.model.entity.Asset;
+import com.maimai.billingcalculationengine.model.response.AssetResponse;
 import com.maimai.billingcalculationengine.service.AssetService;
 import jakarta.annotation.Resource;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -24,9 +25,9 @@ public class AssetController {
         return Result.success(assets, "Assets retrieved successfully");
     }
 
-    @GetMapping("/portfolio/{portfolioId}")
-    public Result<List<Asset>> getAssetsByPortfolioId(@PathVariable String portfolioId) {
-        List<Asset> assets = assetService.getAssetsByPortfolioId(portfolioId);
+    @GetMapping("/{portfolioId}")
+    public Result<List<AssetResponse>> getAssetsByPortfolioId(@PathVariable String portfolioId) {
+        List<AssetResponse> assets = assetService.getAssetsByPortfolioId(portfolioId);
         return Result.success(
                 assets,
                 String.format("Retrieved %d assets for portfolio ID: %s", assets.size(), portfolioId)

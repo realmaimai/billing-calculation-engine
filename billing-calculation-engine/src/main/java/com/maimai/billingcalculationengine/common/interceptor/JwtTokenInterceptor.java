@@ -60,7 +60,7 @@ public class JwtTokenInterceptor implements HandlerInterceptor {
             log.error("JWT validation failed for request {} {} - Error: {}",
                     requestMethod, requestURI, e.getMessage());
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            return false;
+            throw new UnauthorizedException("token expired");
         }
 
     }
